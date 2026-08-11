@@ -1,5 +1,5 @@
 name: Secret
-version: 1.0.0
+version: 1.0.6
 main: de.Darkness.sekret.SekretPlugin
 api-version: '1.21'
 author: Darkness
