@@ -1,0 +1,20 @@
+name: Secret
+version: 1.0.0
+main: de.Darkness.sekret.SekretPlugin
+api-version: '1.21'
+author: Darkness
+description: Chaotische und humorvolle Todesmechaniken.
+
+commands:
+  secret:
+    description: Verwaltet das Secret-Plugin.
+    usage: /secret <reload|heilen|anstecken <Spieler>|funktion <on|off>>
+    permission: secret.admin
+  sit:
+    description: Setzt eine angeleinte Person hin.
+    usage: /sit <angeleinter>
+
+permissions:
+  secret.admin:
+    description: Erlaubt die Verwaltung des Secret-Plugins und das Heilen von Spielern.
+    default: op

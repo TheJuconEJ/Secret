@@ -1,0 +1,151 @@
+messages:
+  same_block: "<player> ist durch einen Blowjob gestorben."
+  excitement: "<player> ist vor Erregung gestorben."
+  trip: "<player> ist beim Gehen gestolpert und gestorben."
+  leash_created: "<leashed> ist nun Eigentum von <owner>."
+
+blow:
+  enabled: true
+  distance: 0.5
+  sound: "ENTITY_PLAYER_HURT"
+  particle: "CLOUD"
+  particle_count: 15
+
+excitement:
+  enabled: true
+  distance: 0.5
+  required_time_seconds: 10
+  check_interval_ticks: 10
+  chance: 1.0
+  sound: "ENTITY_PLAYER_LEVELUP"
+  particle: "HEART"
+  particle_count: 20
+
+tripping:
+  enabled: true
+  chance: 0.001
+  check_interval_ticks: 20
+  animation: true
+  animation_delay_ticks: 4
+  sound: "ENTITY_PLAYER_HURT"
+  particle: "CLOUD"
+  particle_count: 12
+
+leash:
+  enabled: true
+  max_distance: 10.0
+  owner_only_release: true
+
+sit:
+  enabled: true
+
+disease:
+  enabled: true
+  infection_chance: 0.01
+  infection_check_seconds: 60
+  infection_biomes:
+    - "SNOWY_PLAINS"
+    - "ICE_SPIKES"
+    - "SNOWY_TAIGA"
+    - "GROVE"
+    - "JAGGED_PEAKS"
+    - "FROZEN_PEAKS"
+    - "STONY_PEAKS"
+    - "SNOWY_SLOPES"
+    - "SWAMP"
+    - "MANGROVE_SWAMP"
+    - "FROZEN_OCEAN"
+    - "DEEP_FROZEN_OCEAN"
+    - "COLD_OCEAN"
+    - "DEEP_COLD_OCEAN"
+    - "FROZEN_RIVER"
+    - "JUNGLE"
+    - "SPARSE_JUNGLE"
+    - "BAMBOO_JUNGLE"
+    - "DRIPSTONE_CAVES"
+    - "DEEP_DARK"
+  spread_enabled: true
+  spread_distance: 2.0
+  spread_chance: 0.05
+  data_save_interval_seconds: 30
+  death_message: "<player> ist an einer Krankheit gestorben."
+  stages:
+    stage_1_seconds: 60
+    stage_2_seconds: 60
+    stage_3_seconds: 45
+    stage_4_seconds: 30
+    stage_1:
+      damage: 0.0
+      damage_interval_seconds: 20
+      warning_interval_seconds: 30
+      warning: "&eDu fühlst dich unwohl."
+      effects:
+        - "NAUSEA"
+      sound: "ENTITY_PLAYER_BREATH"
+      particle: "HAPPY_VILLAGER"
+      particle_count: 3
+    stage_2:
+      damage: 1.0
+      damage_interval_seconds: 15
+      warning_interval_seconds: 25
+      warning: "&6Deine Krankheit verschlechtert sich."
+      effects:
+        - "HUNGER"
+        - "WEAKNESS"
+        - "SLOWNESS"
+      sound: "ENTITY_PLAYER_HURT"
+      particle: "SMOKE"
+      particle_count: 6
+    stage_3:
+      damage: 2.0
+      damage_interval_seconds: 10
+      warning_interval_seconds: 20
+      warning: "&cDeine Krankheit wird immer schlimmer!"
+      effects:
+        - "HUNGER"
+        - "WEAKNESS"
+        - "SLOWNESS"
+        - "NAUSEA"
+      sound: "ENTITY_PLAYER_HURT"
+      particle: "SMOKE"
+      particle_count: 12
+    stage_4:
+      damage: 3.0
+      damage_interval_seconds: 5
+      warning_interval_seconds: 10
+      warning: "&4Dein Körper gibt langsam auf..."
+      effects:
+        - "HUNGER"
+        - "WEAKNESS"
+        - "SLOWNESS"
+        - "NAUSEA"
+      sound: "ENTITY_WITHER_HURT"
+      particle: "SMOKE"
+      particle_count: 20
+  healing:
+    enabled: true
+    item: "GOLDEN_APPLE"
+  acceleration:
+    sprinting: false
+    jumping: false
+    fighting: false
+    hunger: true
+    biomes: []
+    seconds_per_activity: 5
+
+water:
+  enabled: true
+  max: 20.0
+  drain_per_second: 0.05
+  disease_drain_multiplier: 2.0
+  desert_drain_multiplier: 2.0
+  desert_biomes:
+    - "DESERT"
+    - "BADLANDS"
+    - "WOODED_BADLANDS"
+    - "ERODED_BADLANDS"
+  bottle_restore: 5.0
+  dehydration_damage: 1.0
+  dehydration_warning: "&cDu verdurstest!"
+  death_message: "<player> ist verdurstet."
+  data_save_interval_seconds: 30
