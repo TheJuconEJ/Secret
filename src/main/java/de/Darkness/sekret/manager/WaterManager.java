@@ -10,6 +10,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.scheduler.BukkitTask;
@@ -28,6 +29,7 @@ public final class WaterManager implements Listener {
     private final SekretPlugin plugin;
     private final Map<UUID, Double> waterLevels = new HashMap<>();
     private final Set<UUID> dehydrationDeaths = new HashSet<>();
+    private final Set<UUID> dehydrationWarnings = new HashSet<>();
     private final File dataFile;
     private BukkitTask monitorTask;
     private long lastSave;
@@ -61,6 +63,7 @@ public final class WaterManager implements Listener {
         saveData();
         waterLevels.clear();
         dehydrationDeaths.clear();
+        dehydrationWarnings.clear();
     }
 
     @EventHandler
@@ -70,6 +73,15 @@ public final class WaterManager implements Listener {
         }
         waterLevels.putIfAbsent(event.getPlayer().getUniqueId(), maxWater());
         displayWater(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onRespawn(PlayerRespawnEvent event) {
+        if (!plugin.getConfig().getBoolean("water.enabled", true)) {
+            return;
+        }
+        setWater(event.getPlayer(), maxWater());
+        dehydrationWarnings.remove(event.getPlayer().getUniqueId());
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -112,6 +124,8 @@ public final class WaterManager implements Listener {
             waterLevels.put(player.getUniqueId(), water);
             if (water <= 0.0D) {
                 damageDehydratedPlayer(player);
+            } else {
+                dehydrationWarnings.remove(player.getUniqueId());
             }
             displayWater(player);
         }
@@ -141,6 +155,9 @@ public final class WaterManager implements Listener {
         dehydrationDeaths.add(player.getUniqueId());
         player.damage(damage);
         dehydrationDeaths.remove(player.getUniqueId());
+        if (!dehydrationWarnings.add(player.getUniqueId())) {
+            return;
+        }
         String warning = plugin.getConfig().getString("water.dehydration_warning", "&cDu verdurstest!");
         if (!warning.isBlank()) {
             player.sendMessage(ChatColor.translateAlternateColorCodes('&', warning));

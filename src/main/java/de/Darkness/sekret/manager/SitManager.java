@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.vehicle.VehicleExitEvent;
@@ -64,7 +65,25 @@ public final class SitManager implements Listener {
     public void onVehicleExit(VehicleExitEvent event) {
         if (event.getExited() instanceof Player player && seatByPlayer.get(player.getUniqueId()) != null
                 && seatByPlayer.get(player.getUniqueId()).equals(event.getVehicle().getUniqueId())) {
-            standUp(player.getUniqueId());
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onSeatInteract(PlayerInteractEntityEvent event) {
+        if (!(event.getRightClicked() instanceof ArmorStand seat)) {
+            return;
+        }
+        for (Map.Entry<UUID, UUID> entry : seatByPlayer.entrySet()) {
+            if (!entry.getValue().equals(seat.getUniqueId())) {
+                continue;
+            }
+            UUID seatedPlayerId = entry.getKey();
+            if (event.getPlayer().getUniqueId().equals(ownerBySeatedPlayer.get(seatedPlayerId))) {
+                standUp(seatedPlayerId);
+            }
+            event.setCancelled(true);
+            return;
         }
     }
 

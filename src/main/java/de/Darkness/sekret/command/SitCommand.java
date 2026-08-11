@@ -21,8 +21,8 @@ public final class SitCommand implements CommandExecutor {
             sender.sendMessage("§cDieser Befehl kann nur von Spielern verwendet werden.");
             return true;
         }
-        if (args.length != 1) {
-            owner.sendMessage("§eBenutzung: /sit <angeleinter>");
+        if (args.length > 1) {
+            owner.sendMessage("§eBenutzung: /sit [angeleinter]");
             return true;
         }
         if (!plugin.getConfig().getBoolean("sit.enabled", true)) {
@@ -30,18 +30,25 @@ public final class SitCommand implements CommandExecutor {
             return true;
         }
 
-        Player target = Bukkit.getPlayerExact(args[0]);
-        if (target == null) {
-            owner.sendMessage("§cDieser Spieler ist nicht online.");
-            return true;
-        }
-        if (!plugin.getLeashManager().isOwnerOf(owner.getUniqueId(), target.getUniqueId())) {
-            owner.sendMessage("§cDieser Spieler gehört nicht dir.");
-            return true;
+        Player target = owner;
+        if (args.length == 1) {
+            target = Bukkit.getPlayerExact(args[0]);
+            if (target == null) {
+                owner.sendMessage("§cDieser Spieler ist nicht online.");
+                return true;
+            }
+            if (!plugin.getLeashManager().isOwnerOf(owner.getUniqueId(), target.getUniqueId())) {
+                owner.sendMessage("§cDieser Spieler gehört nicht dir.");
+                return true;
+            }
         }
 
         plugin.getSitManager().sit(owner, target);
-        owner.sendMessage("§a" + target.getName() + " sitzt jetzt.");
+        if (target.equals(owner)) {
+            owner.sendMessage("§aDu sitzt jetzt.");
+        } else {
+            owner.sendMessage("§a" + target.getName() + " sitzt jetzt.");
+        }
         return true;
     }
 }
