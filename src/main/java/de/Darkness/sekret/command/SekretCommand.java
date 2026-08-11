@@ -96,9 +96,12 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1 && sender.hasPermission("secret.admin")) {
+        if (args.length == 1) {
             List<String> completions = new ArrayList<>();
             for (String subcommand : List.of("reload", "heilen", "anstecken", "blow", "excitement", "tripping", "leash", "disease", "sit", "water")) {
+                if (!sender.hasPermission("secret.admin")) {
+                    continue;
+                }
                 if (subcommand.startsWith(args[0].toLowerCase())) {
                     completions.add(subcommand);
                 }

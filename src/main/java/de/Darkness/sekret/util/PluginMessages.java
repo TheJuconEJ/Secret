@@ -24,7 +24,10 @@ public final class PluginMessages {
     }
 
     public static void broadcast(SekretPlugin plugin, String path, Player player, Player owner, Player leashed) {
-        Bukkit.broadcastMessage(format(plugin.getConfig().getString(path, ""), player, owner, leashed));
+        String message = format(plugin.getConfig().getString(path, ""), player, owner, leashed);
+        for (Player recipient : Bukkit.getOnlinePlayers()) {
+            recipient.sendMessage(message);
+        }
     }
 
     public static void playEffect(ConfigurationSection section, Player player) {

@@ -2,6 +2,7 @@ package de.Darkness.sekret.manager;
 
 import de.Darkness.sekret.SekretPlugin;
 import de.Darkness.sekret.util.PluginMessages;
+import com.cryptomorin.xseries.particles.XParticle;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
@@ -34,6 +35,7 @@ public final class DeathMechanicsManager implements Listener {
     private final Map<PairKey, Long> excitementStarts = new HashMap<>();
     private final Map<UUID, DeathReason> pendingDeaths = new HashMap<>();
     private final Map<UUID, Long> tripChecks = new HashMap<>();
+    private final Map<UUID, Long> frozenUntil = new HashMap<>();
     private final Set<UUID> pendingTrips = new HashSet<>();
     private BukkitTask excitementTask;
 
@@ -64,28 +66,29 @@ public final class DeathMechanicsManager implements Listener {
         excitementStarts.clear();
         pendingDeaths.clear();
         tripChecks.clear();
+        frozenUntil.clear();
         pendingTrips.clear();
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onSneak(PlayerToggleSneakEvent event) {
-        if (!event.isSneaking() || !plugin.getConfig().getBoolean("blow.enabled", true)) {
+        if (!event.isSneaking() || !plugin.getConfig().getBoolean("together.enabled", true)) {
             return;
         }
 
         Player player = event.getPlayer();
-        if (!canKill(player)) {
+        if (!player.isOnline() || player.isDead()) {
             return;
         }
 
-        double distance = Math.max(0.0D, plugin.getConfig().getDouble("blow.distance", 0.5D));
+        double distance = Math.max(0.0D, plugin.getConfig().getDouble("together.distance", 0.5D));
         double maximumDistanceSquared = distance * distance;
         for (Entity nearby : player.getNearbyEntities(distance, distance, distance)) {
-            if (!(nearby instanceof Player other) || other.isDead() || !other.isOnline()) {
+            if (!(nearby instanceof Player other) || other.isDead() || !other.isOnline() || !other.isSneaking()) {
                 continue;
             }
             if (player.getLocation().distanceSquared(other.getLocation()) <= maximumDistanceSquared) {
-                kill(player, DeathReason.SAME_BLOCK);
+                startTogetherTime(player, other);
                 return;
             }
         }
@@ -100,6 +103,14 @@ public final class DeathMechanicsManager implements Listener {
         }
 
         Player player = event.getPlayer();
+        Long freezeEnd = frozenUntil.get(player.getUniqueId());
+        if (freezeEnd != null) {
+            if (System.currentTimeMillis() < freezeEnd) {
+                event.setTo(from);
+                return;
+            }
+            frozenUntil.remove(player.getUniqueId());
+        }
         tryTrip(player);
     }
 
@@ -118,6 +129,7 @@ public final class DeathMechanicsManager implements Listener {
         UUID playerId = event.getPlayer().getUniqueId();
         removeExcitementTimers(playerId);
         tripChecks.remove(playerId);
+        frozenUntil.remove(playerId);
         pendingTrips.remove(playerId);
         pendingDeaths.remove(playerId);
     }
@@ -233,6 +245,35 @@ public final class DeathMechanicsManager implements Listener {
                 kill(player, DeathReason.TRIP);
             }
         }, delay);
+    }
+
+    private void startTogetherTime(Player first, Player second) {
+        long now = System.currentTimeMillis();
+        if (isFrozen(first, now) || isFrozen(second, now)) {
+            return;
+        }
+
+        long durationMillis = Math.max(1L, plugin.getConfig().getLong("together.freeze_seconds", 60L)) * 1000L;
+        long freezeEnd = now + durationMillis;
+        frozenUntil.put(first.getUniqueId(), freezeEnd);
+        frozenUntil.put(second.getUniqueId(), freezeEnd);
+        PluginMessages.broadcast(plugin, "messages.together", null, first, second);
+        XParticle.of("HEART").ifPresent(particle -> {
+            first.getWorld().spawnParticle(particle.get(), first.getLocation().add(0.0D, 1.0D, 0.0D), 20, 0.3D, 0.5D, 0.3D, 0.05D);
+            second.getWorld().spawnParticle(particle.get(), second.getLocation().add(0.0D, 1.0D, 0.0D), 20, 0.3D, 0.5D, 0.3D, 0.05D);
+        });
+    }
+
+    private boolean isFrozen(Player player, long now) {
+        Long freezeEnd = frozenUntil.get(player.getUniqueId());
+        if (freezeEnd == null) {
+            return false;
+        }
+        if (now < freezeEnd) {
+            return true;
+        }
+        frozenUntil.remove(player.getUniqueId());
+        return false;
     }
 
     private void killBoth(Player first, Player second) {

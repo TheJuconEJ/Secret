@@ -9,7 +9,6 @@ commands:
   secret:
     description: Verwaltet das Secret-Plugin.
     usage: /secret <reload|heilen|anstecken <Spieler>|funktion <on|off>>
-    permission: secret.admin
   sit:
     description: Setzt eine angeleinte Person hin.
     usage: /sit <angeleinter>

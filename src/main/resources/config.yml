@@ -3,6 +3,12 @@ messages:
   excitement: "<player> ist vor Erregung gestorben."
   trip: "<player> ist beim Gehen gestolpert und gestorben."
   leash_created: "<leashed> ist nun Eigentum von <owner>."
+  together: "<owner> und <leashed> brauchen Zeit für sich..."
+
+together:
+  enabled: true
+  distance: 0.5
+  freeze_seconds: 60
 
 blow:
   enabled: true
