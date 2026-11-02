@@ -1,13 +1,12 @@
 package de.Darkness.sekret.manager;
 
+import com.cryptomorin.xseries.particles.XParticle;
 import de.Darkness.sekret.SekretPlugin;
 import de.Darkness.sekret.util.PluginMessages;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
-import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
-import org.bukkit.Registry;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -343,7 +342,7 @@ public final class LeashManager implements Listener {
         }
         Vector step = line.normalize().multiply(0.25D);
         Particle.DustOptions brownDust = new Particle.DustOptions(Color.fromRGB(105, 63, 35), 1.0F);
-        Particle dust = Registry.PARTICLE_TYPE.get(NamespacedKey.minecraft("dust"));
+        Particle dust = XParticle.of("DUST").map(XParticle::get).orElse(null);
         if (dust == null) {
             return;
         }
