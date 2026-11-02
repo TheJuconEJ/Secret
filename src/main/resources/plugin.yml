@@ -1,5 +1,5 @@
 name: Secret
-version: 1.0.6
+version: 1.0.0
 main: de.Darkness.sekret.SekretPlugin
 api-version: '1.21'
 author: Darkness
@@ -9,11 +9,18 @@ commands:
   secret:
     description: Verwaltet das Secret-Plugin.
     usage: /secret <reload|heilen|anstecken <Spieler>|funktion <on|off>>
+    permission: secret.admin
   sit:
     description: Setzt eine angeleinte Person hin.
     usage: /sit <angeleinter>
+  spawn:
+    description: Teleportiert zum Spawn der aktuellen Welt.
+    usage: /spawn [set]
 
 permissions:
+  secret.spawn.set:
+    description: Erlaubt das Festlegen des Weltspawns mit /spawn set.
+    default: op
   secret.admin:
     description: Erlaubt die Verwaltung des Secret-Plugins und das Heilen von Spielern.
     default: op

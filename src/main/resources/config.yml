@@ -1,14 +1,14 @@
+spawn:
+  max_uses: 1
+  window_seconds: 600
+  allow_in_combat: false
+  combat_tag_seconds: 15
+
 messages:
   same_block: "<player> ist durch einen Blowjob gestorben."
   excitement: "<player> ist vor Erregung gestorben."
   trip: "<player> ist beim Gehen gestolpert und gestorben."
   leash_created: "<leashed> ist nun Eigentum von <owner>."
-  together: "<owner> und <leashed> brauchen Zeit für sich..."
-
-together:
-  enabled: true
-  distance: 0.5
-  freeze_seconds: 60
 
 blow:
   enabled: true
@@ -138,20 +138,3 @@ disease:
     hunger: true
     biomes: []
     seconds_per_activity: 5
-
-water:
-  enabled: true
-  max: 20.0
-  drain_per_second: 0.02
-  disease_drain_multiplier: 2.0
-  desert_drain_multiplier: 2.0
-  desert_biomes:
-    - "DESERT"
-    - "BADLANDS"
-    - "WOODED_BADLANDS"
-    - "ERODED_BADLANDS"
-  bottle_restore: 5.0
-  dehydration_damage: 1.0
-  dehydration_warning: "&cDu verdurstest!"
-  death_message: "<player> ist verdurstet."
-  data_save_interval_seconds: 30

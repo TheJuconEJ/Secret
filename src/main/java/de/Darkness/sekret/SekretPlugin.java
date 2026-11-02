@@ -2,11 +2,11 @@ package de.Darkness.sekret;
 
 import de.Darkness.sekret.command.SekretCommand;
 import de.Darkness.sekret.command.SitCommand;
+import de.Darkness.sekret.command.SpawnCommand;
 import de.Darkness.sekret.manager.DeathMechanicsManager;
 import de.Darkness.sekret.manager.DiseaseManager;
 import de.Darkness.sekret.manager.LeashManager;
 import de.Darkness.sekret.manager.SitManager;
-import de.Darkness.sekret.manager.WaterManager;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -16,7 +16,6 @@ public final class SekretPlugin extends JavaPlugin {
     private DeathMechanicsManager deathMechanicsManager;
     private DiseaseManager diseaseManager;
     private SitManager sitManager;
-    private WaterManager waterManager;
 
     @Override
     public void onEnable() {
@@ -28,13 +27,11 @@ public final class SekretPlugin extends JavaPlugin {
         deathMechanicsManager = new DeathMechanicsManager(this);
         diseaseManager = new DiseaseManager(this);
         sitManager = new SitManager(this);
-        waterManager = new WaterManager(this);
 
         getServer().getPluginManager().registerEvents(leashManager, this);
         getServer().getPluginManager().registerEvents(deathMechanicsManager, this);
         getServer().getPluginManager().registerEvents(diseaseManager, this);
         getServer().getPluginManager().registerEvents(sitManager, this);
-        getServer().getPluginManager().registerEvents(waterManager, this);
         leashManager.start();
 
         PluginCommand command = getCommand("secret");
@@ -47,10 +44,16 @@ public final class SekretPlugin extends JavaPlugin {
         if (sitCommand != null) {
             sitCommand.setExecutor(new SitCommand(this));
         }
+        PluginCommand spawnCommand = getCommand("spawn");
+        if (spawnCommand != null) {
+            SpawnCommand executor = new SpawnCommand(this);
+            spawnCommand.setExecutor(executor);
+            spawnCommand.setTabCompleter(executor);
+            getServer().getPluginManager().registerEvents(executor, this);
+        }
 
         deathMechanicsManager.start();
         diseaseManager.start();
-        waterManager.start();
     }
 
     @Override
@@ -60,9 +63,6 @@ public final class SekretPlugin extends JavaPlugin {
         }
         if (diseaseManager != null) {
             diseaseManager.shutdown();
-        }
-        if (waterManager != null) {
-            waterManager.shutdown();
         }
         if (leashManager != null) {
             leashManager.shutdown();
@@ -77,7 +77,6 @@ public final class SekretPlugin extends JavaPlugin {
         leashManager.reload();
         deathMechanicsManager.reload();
         diseaseManager.reload();
-        waterManager.reload();
         sitManager.reload();
     }
 

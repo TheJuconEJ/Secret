@@ -21,8 +21,7 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
             "tripping", "tripping.enabled",
             "leash", "leash.enabled",
             "disease", "disease.enabled",
-            "sit", "sit.enabled",
-            "water", "water.enabled"
+            "sit", "sit.enabled"
     );
 
     private final SekretPlugin plugin;
@@ -90,18 +89,15 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
         }
 
         sender.sendMessage("§eBenutzung: /" + label + " <reload|heilen|anstecken <Spieler>|"
-                + "blow|excitement|tripping|leash|disease|sit|water> <on|off>");
+                + "blow|excitement|tripping|leash|disease|sit> <on|off>");
         return true;
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) {
+        if (args.length == 1 && sender.hasPermission("secret.admin")) {
             List<String> completions = new ArrayList<>();
-            for (String subcommand : List.of("reload", "heilen", "anstecken", "blow", "excitement", "tripping", "leash", "disease", "sit", "water")) {
-                if (!sender.hasPermission("secret.admin")) {
-                    continue;
-                }
+            for (String subcommand : List.of("reload", "heilen", "anstecken", "blow", "excitement", "tripping", "leash", "disease", "sit")) {
                 if (subcommand.startsWith(args[0].toLowerCase())) {
                     completions.add(subcommand);
                 }
