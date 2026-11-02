@@ -4,6 +4,7 @@ import de.Darkness.sekret.command.SekretCommand;
 import de.Darkness.sekret.command.SitCommand;
 import de.Darkness.sekret.command.SpawnCommand;
 import de.Darkness.sekret.manager.DeathMechanicsManager;
+import de.Darkness.sekret.manager.DeathScoreboardManager;
 import de.Darkness.sekret.manager.DiseaseManager;
 import de.Darkness.sekret.manager.LeashManager;
 import de.Darkness.sekret.manager.SitManager;
@@ -16,6 +17,7 @@ public final class SekretPlugin extends JavaPlugin {
     private DeathMechanicsManager deathMechanicsManager;
     private DiseaseManager diseaseManager;
     private SitManager sitManager;
+    private DeathScoreboardManager deathScoreboardManager;
 
     @Override
     public void onEnable() {
@@ -27,11 +29,13 @@ public final class SekretPlugin extends JavaPlugin {
         deathMechanicsManager = new DeathMechanicsManager(this);
         diseaseManager = new DiseaseManager(this);
         sitManager = new SitManager(this);
+        deathScoreboardManager = new DeathScoreboardManager(this);
 
         getServer().getPluginManager().registerEvents(leashManager, this);
         getServer().getPluginManager().registerEvents(deathMechanicsManager, this);
         getServer().getPluginManager().registerEvents(diseaseManager, this);
         getServer().getPluginManager().registerEvents(sitManager, this);
+        getServer().getPluginManager().registerEvents(deathScoreboardManager, this);
         leashManager.start();
 
         PluginCommand command = getCommand("secret");
@@ -54,10 +58,14 @@ public final class SekretPlugin extends JavaPlugin {
 
         deathMechanicsManager.start();
         diseaseManager.start();
+        deathScoreboardManager.start();
     }
 
     @Override
     public void onDisable() {
+        if (deathScoreboardManager != null) {
+            deathScoreboardManager.shutdown();
+        }
         if (deathMechanicsManager != null) {
             deathMechanicsManager.shutdown();
         }
