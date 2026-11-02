@@ -2,6 +2,10 @@ package de.Darkness.sekret.manager;
 
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -16,18 +20,22 @@ import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 
-public final class DeathScoreboardManager implements Listener {
+public final class DeathScoreboardManager implements Listener, CommandExecutor, TabCompleter {
 
     private static final int TOP_SIZE = 5;
 
@@ -36,6 +44,9 @@ public final class DeathScoreboardManager implements Listener {
     private final Map<UUID, Integer> deaths = new HashMap<>();
     private final Map<UUID, String> names = new HashMap<>();
     private final Map<UUID, Scoreboard> previousBoards = new HashMap<>();
+    private final Set<UUID> hidden = new HashSet<>();
+    private final Map<UUID, Scoreboard> animationBoards = new HashMap<>();
+    private final Map<UUID, BukkitTask> animations = new HashMap<>();
     private final List<String> entries = new ArrayList<>();
     private final List<Team> rows = new ArrayList<>();
     private Scoreboard scoreboard;
@@ -92,18 +103,65 @@ public final class DeathScoreboardManager implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        previousBoards.remove(event.getPlayer().getUniqueId());
+        UUID id = event.getPlayer().getUniqueId();
+        cancelAnimation(id);
+        restore(event.getPlayer());
     }
 
     public void shutdown() {
         save();
+        for (BukkitTask task : animations.values()) {
+            task.cancel();
+        }
+        animations.clear();
         for (Player player : plugin.getServer().getOnlinePlayers()) {
-            Scoreboard previous = previousBoards.get(player.getUniqueId());
-            if (previous != null && player.getScoreboard() == scoreboard) {
-                player.setScoreboard(previous);
+            restore(player);
+        }
+        animationBoards.clear();
+        previousBoards.clear();
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(ChatColor.RED + "Nur Spieler können die Todesliste umschalten.");
+            return true;
+        }
+        if (args.length > 1 || (args.length == 1
+                && !args[0].equalsIgnoreCase("an") && !args[0].equalsIgnoreCase("aus"))) {
+            player.sendMessage(ChatColor.RED + "Verwendung: /" + label + " [an|aus]");
+            return true;
+        }
+        UUID id = player.getUniqueId();
+        boolean visible = args.length == 0 ? hidden.contains(id) : args[0].equalsIgnoreCase("an");
+        if (visible == !hidden.contains(id)) {
+            player.sendMessage(ChatColor.YELLOW + "Die Todesliste ist bereits "
+                    + (visible ? "eingeblendet." : "ausgeblendet."));
+            return true;
+        }
+        if (visible) {
+            hidden.remove(id);
+        } else {
+            hidden.add(id);
+        }
+        save();
+        animate(player, visible);
+        player.sendMessage(ChatColor.GREEN + "Todesliste " + (visible ? "eingeblendet." : "ausgeblendet."));
+        return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (args.length != 1) {
+            return List.of();
+        }
+        List<String> completions = new ArrayList<>();
+        for (String option : List.of("an", "aus")) {
+            if (option.regionMatches(true, 0, args[0], 0, args[0].length())) {
+                completions.add(option);
             }
         }
-        previousBoards.clear();
+        return completions;
     }
 
     private void remember(Player player) {
@@ -112,8 +170,103 @@ public final class DeathScoreboardManager implements Listener {
     }
 
     private void show(Player player) {
+        if (hidden.contains(player.getUniqueId())) {
+            return;
+        }
         previousBoards.putIfAbsent(player.getUniqueId(), player.getScoreboard());
         player.setScoreboard(scoreboard);
+    }
+
+    private void cancelAnimation(UUID id) {
+        BukkitTask task = animations.remove(id);
+        if (task != null) {
+            task.cancel();
+        }
+    }
+
+    private void restore(Player player) {
+        UUID id = player.getUniqueId();
+        Scoreboard animated = animationBoards.remove(id);
+        Scoreboard previous = previousBoards.remove(id);
+        if (previous != null && (player.getScoreboard() == scoreboard || player.getScoreboard() == animated)) {
+            player.setScoreboard(previous);
+        }
+    }
+
+    private void animate(Player player, boolean visible) {
+        UUID id = player.getUniqueId();
+        cancelAnimation(id);
+        previousBoards.putIfAbsent(id, player.getScoreboard());
+        Scoreboard animated = plugin.getServer().getScoreboardManager().getNewScoreboard();
+        Objective animatedObjective = animated.registerNewObjective("secret_deaths", "dummy", title());
+        List<Team> animatedRows = new ArrayList<>();
+        int width = ChatColor.stripColor(title()).length();
+        for (int i = 0; i < TOP_SIZE; i++) {
+            Team team = animated.registerNewTeam("death_row_" + i);
+            team.addEntry(entries.get(i));
+            animatedRows.add(team);
+            width = Math.max(width, ChatColor.stripColor(rows.get(i).getPrefix()).length());
+        }
+        final int fullWidth = Math.max(1, width);
+        animationBoards.put(id, animated);
+        player.setScoreboard(animated);
+        BukkitTask task = new BukkitRunnable() {
+            private int frame;
+
+            @Override
+            public void run() {
+                if (!player.isOnline() || player.getScoreboard() != animated) {
+                    animations.remove(id);
+                    animationBoards.remove(id);
+                    previousBoards.remove(id);
+                    cancel();
+                    return;
+                }
+                int shownWidth = visible ? frame : fullWidth - frame;
+                animatedObjective.setDisplayName(clip(title(), shownWidth));
+                for (int i = 0; i < TOP_SIZE; i++) {
+                    String entry = entries.get(i);
+                    animated.resetScores(entry);
+                    if (shownWidth > 0 && objective.getScore(entry).isScoreSet()) {
+                        animatedRows.get(i).setPrefix(clip(rows.get(i).getPrefix(), shownWidth));
+                        animatedObjective.getScore(entry).setScore(objective.getScore(entry).getScore());
+                    }
+                }
+                if (shownWidth > 0) {
+                    animatedObjective.setDisplaySlot(DisplaySlot.SIDEBAR);
+                } else {
+                    animated.clearSlot(DisplaySlot.SIDEBAR);
+                }
+                if (frame++ >= fullWidth) {
+                    animations.remove(id);
+                    if (visible) {
+                        player.setScoreboard(scoreboard);
+                        animationBoards.remove(id);
+                    } else {
+                        restore(player);
+                    }
+                    cancel();
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 2L);
+        animations.put(id, task);
+    }
+
+    private String clip(String text, int width) {
+        if (width <= 0) {
+            return ChatColor.RESET.toString();
+        }
+        int end = 0;
+        int characters = 0;
+        while (end < text.length() && characters < width) {
+            if (text.charAt(end) == ChatColor.COLOR_CHAR && end + 1 < text.length()) {
+                end += 2;
+            } else {
+                end++;
+                characters++;
+            }
+        }
+        return text.substring(0, end) + ChatColor.RESET;
     }
 
     private String title() {
@@ -152,6 +305,9 @@ public final class DeathScoreboardManager implements Listener {
                 UUID id = UUID.fromString(key);
                 names.put(id, entry.getString("name", key));
                 deaths.put(id, Math.max(0, entry.getInt("deaths", 0)));
+                if (entry.getBoolean("hidden", false)) {
+                    hidden.add(id);
+                }
             } catch (IllegalArgumentException exception) {
                 plugin.getLogger().warning("Ungültige Spieler-UUID in deaths.yml: " + key);
             }
@@ -164,6 +320,7 @@ public final class DeathScoreboardManager implements Listener {
             String path = "players." + entry.getKey();
             data.set(path + ".name", entry.getValue());
             data.set(path + ".deaths", deaths.getOrDefault(entry.getKey(), 0));
+            data.set(path + ".hidden", hidden.contains(entry.getKey()));
         }
         try {
             data.save(dataFile);

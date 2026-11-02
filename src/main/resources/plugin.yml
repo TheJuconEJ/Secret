@@ -16,6 +16,9 @@ commands:
   spawn:
     description: Teleportiert zum Spawn der aktuellen Welt.
     usage: /spawn [set]
+  todesliste:
+    description: Blendet deine persönliche Todesliste ein oder aus.
+    usage: /todesliste [an|aus]
 
 permissions:
   secret.spawn.set:

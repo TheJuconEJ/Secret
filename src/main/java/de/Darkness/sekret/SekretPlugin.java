@@ -38,6 +38,11 @@ public final class SekretPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(deathScoreboardManager, this);
         leashManager.start();
 
+        PluginCommand deathsCommand = getCommand("todesliste");
+        if (deathsCommand != null) {
+            deathsCommand.setExecutor(deathScoreboardManager);
+            deathsCommand.setTabCompleter(deathScoreboardManager);
+        }
         PluginCommand command = getCommand("secret");
         if (command != null) {
             SekretCommand executor = new SekretCommand(this);
