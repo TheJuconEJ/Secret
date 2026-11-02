@@ -12,10 +12,6 @@ import de.maxhenkel.voicechat.api.events.EventRegistration;
 import de.maxhenkel.voicechat.api.events.VoicechatServerStartedEvent;
 import de.maxhenkel.voicechat.api.events.VoicechatServerStoppedEvent;
 import de.maxhenkel.voicechat.api.opus.OpusEncoder;
-import javazoom.jl.decoder.Bitstream;
-import javazoom.jl.decoder.Decoder;
-import javazoom.jl.decoder.Header;
-import javazoom.jl.decoder.SampleBuffer;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -24,6 +20,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -181,26 +179,40 @@ public final class ScheduledSoundManager implements VoicechatPlugin {
     }
 
     private short[] decodeMp3(int request) throws Exception {
+        Class<?> bitstreamClass = Class.forName("javazoom.jl.decoder.Bitstream");
+        Class<?> decoderClass = Class.forName("javazoom.jl.decoder.Decoder");
+        Class<?> headerClass = Class.forName("javazoom.jl.decoder.Header");
+        Class<?> sampleBufferClass = Class.forName("javazoom.jl.decoder.SampleBuffer");
+        Method readFrame = bitstreamClass.getMethod("readFrame");
+        Method closeFrame = bitstreamClass.getMethod("closeFrame");
+        Method closeBitstream = bitstreamClass.getMethod("close");
+        Method decodeFrame = decoderClass.getMethod("decodeFrame", headerClass, bitstreamClass);
+        Method getSampleFrequency = sampleBufferClass.getMethod("getSampleFrequency");
+        Method getChannelCount = sampleBufferClass.getMethod("getChannelCount");
+        Method getBuffer = sampleBufferClass.getMethod("getBuffer");
+        Method getBufferLength = sampleBufferClass.getMethod("getBufferLength");
         try (BufferedInputStream input = new BufferedInputStream(new FileInputStream(soundFile));
              ByteArrayOutputStream mono = new ByteArrayOutputStream()) {
-            Bitstream bitstream = new Bitstream(input);
-            Decoder decoder = new Decoder();
+            Object bitstream = bitstreamClass.getConstructor(InputStream.class).newInstance(input);
+            Object decoder = decoderClass.getConstructor().newInstance();
             int sourceRate = 0;
             try {
-                Header header;
-                while ((header = bitstream.readFrame()) != null) {
+                Object header;
+                while ((header = readFrame.invoke(bitstream)) != null) {
                     if (generation != request || Thread.currentThread().isInterrupted()) {
                         throw new CancellationException();
                     }
                     try {
-                        SampleBuffer buffer = (SampleBuffer) decoder.decodeFrame(header, bitstream);
-                        if (sourceRate != 0 && sourceRate != buffer.getSampleFrequency()) {
+                        Object buffer = sampleBufferClass.cast(decodeFrame.invoke(decoder, header, bitstream));
+                        int frequency = (Integer) getSampleFrequency.invoke(buffer);
+                        if (sourceRate != 0 && sourceRate != frequency) {
                             throw new IOException("Die Abtastrate der MP3 ändert sich innerhalb der Datei.");
                         }
-                        sourceRate = buffer.getSampleFrequency();
-                        int channels = buffer.getChannelCount();
-                        short[] samples = buffer.getBuffer();
-                        for (int offset = 0; offset < buffer.getBufferLength(); offset += channels) {
+                        sourceRate = frequency;
+                        int channels = (Integer) getChannelCount.invoke(buffer);
+                        short[] samples = (short[]) getBuffer.invoke(buffer);
+                        int bufferLength = (Integer) getBufferLength.invoke(buffer);
+                        for (int offset = 0; offset < bufferLength; offset += channels) {
                             int sum = 0;
                             for (int channel = 0; channel < channels; channel++) {
                                 sum += samples[offset + channel];
@@ -210,11 +222,11 @@ public final class ScheduledSoundManager implements VoicechatPlugin {
                             mono.write((sample >> 8) & 0xFF);
                         }
                     } finally {
-                        bitstream.closeFrame();
+                        closeFrame.invoke(bitstream);
                     }
                 }
             } finally {
-                bitstream.close();
+                closeBitstream.invoke(bitstream);
             }
             byte[] raw = mono.toByteArray();
             int sampleCount = raw.length / 2;

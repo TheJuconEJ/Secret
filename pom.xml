@@ -43,6 +43,7 @@
             <groupId>javazoom</groupId>
             <artifactId>jlayer</artifactId>
             <version>1.0.1</version>
+            <scope>runtime</scope>
         </dependency>
     </dependencies>
 

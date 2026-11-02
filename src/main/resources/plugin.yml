@@ -5,6 +5,8 @@ api-version: '1.21'
 author: Darkness
 description: Chaotische und humorvolle Todesmechaniken.
 depend: [voicechat]
+libraries:
+  - javazoom:jlayer:1.0.1
 
 commands:
   secret:
