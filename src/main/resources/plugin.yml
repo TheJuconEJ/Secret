@@ -4,6 +4,7 @@ main: de.Darkness.sekret.SekretPlugin
 api-version: '1.21'
 author: Darkness
 description: Chaotische und humorvolle Todesmechaniken.
+depend: [voicechat]
 
 commands:
   secret:

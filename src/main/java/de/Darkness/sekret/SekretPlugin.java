@@ -7,6 +7,7 @@ import de.Darkness.sekret.manager.DeathMechanicsManager;
 import de.Darkness.sekret.manager.DeathScoreboardManager;
 import de.Darkness.sekret.manager.DiseaseManager;
 import de.Darkness.sekret.manager.LeashManager;
+import de.Darkness.sekret.manager.ScheduledSoundManager;
 import de.Darkness.sekret.manager.SitManager;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -18,6 +19,7 @@ public final class SekretPlugin extends JavaPlugin {
     private DiseaseManager diseaseManager;
     private SitManager sitManager;
     private DeathScoreboardManager deathScoreboardManager;
+    private ScheduledSoundManager scheduledSoundManager;
 
     @Override
     public void onEnable() {
@@ -64,10 +66,15 @@ public final class SekretPlugin extends JavaPlugin {
         deathMechanicsManager.start();
         diseaseManager.start();
         deathScoreboardManager.start();
+        scheduledSoundManager = new ScheduledSoundManager(this);
+        scheduledSoundManager.start();
     }
 
     @Override
     public void onDisable() {
+        if (scheduledSoundManager != null) {
+            scheduledSoundManager.shutdown();
+        }
         if (deathScoreboardManager != null) {
             deathScoreboardManager.shutdown();
         }
@@ -91,6 +98,7 @@ public final class SekretPlugin extends JavaPlugin {
         deathMechanicsManager.reload();
         diseaseManager.reload();
         sitManager.reload();
+        scheduledSoundManager.reload();
     }
 
     public LeashManager getLeashManager() {
