@@ -22,9 +22,6 @@ commands:
   todesliste:
     description: Blendet deine persönliche Todesliste ein oder aus.
     usage: /todesliste [an|aus]
-  weihnachten:
-    description: Öffnet das Weihnachtsinventar oder schaltet es als Admin für alle um.
-    usage: /weihnachten [an|aus]
 
 permissions:
   secret.spawn.set:

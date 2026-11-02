@@ -9,9 +9,6 @@ scheduled_sound:
   timezone: "Europe/Berlin"
   time: "20:00"
 
-christmas_inventory:
-  enabled: false
-
 messages:
   same_block: "<player> ist durch einen Blowjob gestorben."
   excitement: "<player> ist vor Erregung gestorben."

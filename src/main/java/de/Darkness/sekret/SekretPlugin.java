@@ -3,7 +3,6 @@ package de.Darkness.sekret;
 import de.Darkness.sekret.command.SekretCommand;
 import de.Darkness.sekret.command.SitCommand;
 import de.Darkness.sekret.command.SpawnCommand;
-import de.Darkness.sekret.manager.ChristmasInventoryManager;
 import de.Darkness.sekret.manager.DeathMechanicsManager;
 import de.Darkness.sekret.manager.DeathScoreboardManager;
 import de.Darkness.sekret.manager.DiseaseManager;
@@ -21,7 +20,6 @@ public final class SekretPlugin extends JavaPlugin {
     private SitManager sitManager;
     private DeathScoreboardManager deathScoreboardManager;
     private ScheduledSoundManager scheduledSoundManager;
-    private ChristmasInventoryManager christmasInventoryManager;
 
     @Override
     public void onEnable() {
@@ -34,21 +32,14 @@ public final class SekretPlugin extends JavaPlugin {
         diseaseManager = new DiseaseManager(this);
         sitManager = new SitManager(this);
         deathScoreboardManager = new DeathScoreboardManager(this);
-        christmasInventoryManager = new ChristmasInventoryManager(this);
 
         getServer().getPluginManager().registerEvents(leashManager, this);
         getServer().getPluginManager().registerEvents(deathMechanicsManager, this);
         getServer().getPluginManager().registerEvents(diseaseManager, this);
         getServer().getPluginManager().registerEvents(sitManager, this);
         getServer().getPluginManager().registerEvents(deathScoreboardManager, this);
-        getServer().getPluginManager().registerEvents(christmasInventoryManager, this);
         leashManager.start();
 
-        PluginCommand christmasCommand = getCommand("weihnachten");
-        if (christmasCommand != null) {
-            christmasCommand.setExecutor(christmasInventoryManager);
-            christmasCommand.setTabCompleter(christmasInventoryManager);
-        }
         PluginCommand deathsCommand = getCommand("todesliste");
         if (deathsCommand != null) {
             deathsCommand.setExecutor(deathScoreboardManager);
@@ -81,9 +72,6 @@ public final class SekretPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (christmasInventoryManager != null) {
-            christmasInventoryManager.shutdown();
-        }
         if (scheduledSoundManager != null) {
             scheduledSoundManager.shutdown();
         }
@@ -111,7 +99,6 @@ public final class SekretPlugin extends JavaPlugin {
         diseaseManager.reload();
         sitManager.reload();
         scheduledSoundManager.reload();
-        christmasInventoryManager.reload();
     }
 
     public LeashManager getLeashManager() {
