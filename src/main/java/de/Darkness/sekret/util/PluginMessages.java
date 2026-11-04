@@ -5,14 +5,41 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Locale;
 
 public final class PluginMessages {
 
     private PluginMessages() {
+    }
+
+    public static String text(JavaPlugin plugin, String german, String english) {
+        return plugin.getConfig().getString("language", "de").equalsIgnoreCase("en") ? english : german;
+    }
+
+    public static String language(JavaPlugin plugin, CommandSender recipient) {
+        if (recipient instanceof Player player && plugin instanceof SekretPlugin sekret && sekret.getPlayerMenu() != null) {
+            return sekret.getPlayerMenu().language(player);
+        }
+        return "en".equalsIgnoreCase(plugin.getConfig().getString("language", "de")) ? "en" : "de";
+    }
+
+    public static String text(JavaPlugin plugin, CommandSender recipient, String german, String english) {
+        return language(plugin, recipient).equals("en") ? english : german;
+    }
+
+    public static String configured(JavaPlugin plugin, String path) {
+        String localizedPath = text(plugin, path, "translations.en." + path);
+        return plugin.getConfig().getString(localizedPath, plugin.getConfig().getString(path, ""));
+    }
+
+    public static String configured(JavaPlugin plugin, CommandSender recipient, String path) {
+        String localizedPath = text(plugin, recipient, path, "translations.en." + path);
+        return plugin.getConfig().getString(localizedPath, plugin.getConfig().getString(path, ""));
     }
 
     public static String format(String message, Player player, Player owner, Player leashed) {
@@ -24,7 +51,10 @@ public final class PluginMessages {
     }
 
     public static void broadcast(SekretPlugin plugin, String path, Player player, Player owner, Player leashed) {
-        Bukkit.broadcastMessage(format(plugin.getConfig().getString(path, ""), player, owner, leashed));
+        for (Player recipient : Bukkit.getOnlinePlayers()) {
+            recipient.sendMessage(format(configured(plugin, recipient, path), player, owner, leashed));
+        }
+        Bukkit.getConsoleSender().sendMessage(format(configured(plugin, path), player, owner, leashed));
     }
 
     public static void playEffect(ConfigurationSection section, Player player) {

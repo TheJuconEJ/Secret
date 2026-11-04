@@ -6,13 +6,19 @@ import de.Darkness.sekret.command.SpawnCommand;
 import de.Darkness.sekret.manager.DeathMechanicsManager;
 import de.Darkness.sekret.manager.DeathScoreboardManager;
 import de.Darkness.sekret.manager.DiseaseManager;
+import de.Darkness.sekret.manager.FeatureMenu;
 import de.Darkness.sekret.manager.LeashManager;
+import de.Darkness.sekret.manager.PlayerMenu;
 import de.Darkness.sekret.manager.ScheduledSoundManager;
+import de.Darkness.sekret.manager.SettingsMenu;
 import de.Darkness.sekret.manager.SitManager;
+import de.Darkness.sekret.manager.ThirstManager;
+import lombok.Getter;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -32,8 +38,14 @@ public final class SekretPlugin extends JavaPlugin {
     private DeathMechanicsManager deathMechanicsManager;
     private DiseaseManager diseaseManager;
     private SitManager sitManager;
+    @Getter
     private DeathScoreboardManager deathScoreboardManager;
     private ScheduledSoundManager scheduledSoundManager;
+    private FeatureMenu featureMenu;
+    private ThirstManager thirstManager;
+    private SettingsMenu settingsMenu;
+    @Getter
+    private PlayerMenu playerMenu;
 
     @Override
     public void onEnable() {
@@ -42,17 +54,25 @@ public final class SekretPlugin extends JavaPlugin {
             return;
         }
 
+        playerMenu = new PlayerMenu(this);
         leashManager = new LeashManager(this);
         deathMechanicsManager = new DeathMechanicsManager(this);
         diseaseManager = new DiseaseManager(this);
         sitManager = new SitManager(this);
         deathScoreboardManager = new DeathScoreboardManager(this);
+        featureMenu = new FeatureMenu(this);
+        thirstManager = new ThirstManager(this);
+        settingsMenu = new SettingsMenu(this);
 
         getServer().getPluginManager().registerEvents(leashManager, this);
         getServer().getPluginManager().registerEvents(deathMechanicsManager, this);
         getServer().getPluginManager().registerEvents(diseaseManager, this);
         getServer().getPluginManager().registerEvents(sitManager, this);
         getServer().getPluginManager().registerEvents(deathScoreboardManager, this);
+        getServer().getPluginManager().registerEvents(featureMenu, this);
+        getServer().getPluginManager().registerEvents(thirstManager, this);
+        getServer().getPluginManager().registerEvents(settingsMenu, this);
+        getServer().getPluginManager().registerEvents(playerMenu, this);
         leashManager.start();
 
         PluginCommand deathsCommand = getCommand("todesliste");
@@ -81,12 +101,25 @@ public final class SekretPlugin extends JavaPlugin {
         deathMechanicsManager.start();
         diseaseManager.start();
         deathScoreboardManager.start();
+        thirstManager.start();
         scheduledSoundManager = new ScheduledSoundManager(this);
         scheduledSoundManager.start();
     }
 
     @Override
     public void onDisable() {
+        if (playerMenu != null) {
+            playerMenu.shutdown();
+        }
+        if (settingsMenu != null) {
+            settingsMenu.shutdown();
+        }
+        if (thirstManager != null) {
+            thirstManager.shutdown();
+        }
+        if (featureMenu != null) {
+            featureMenu.shutdown();
+        }
         if (scheduledSoundManager != null) {
             scheduledSoundManager.shutdown();
         }
@@ -117,6 +150,61 @@ public final class SekretPlugin extends JavaPlugin {
         diseaseManager.reload();
         sitManager.reload();
         scheduledSoundManager.reload();
+        deathScoreboardManager.reload();
+        thirstManager.reload();
+        featureMenu.refresh();
+        settingsMenu.refresh();
+        playerMenu.refresh();
+    }
+
+    public void openFeatureMenu(Player player) {
+        featureMenu.open(player);
+    }
+
+    public void refreshPlayerLanguage(Player player) {
+        deathScoreboardManager.refreshPlayer(player);
+        thirstManager.refresh();
+        featureMenu.refresh();
+        settingsMenu.refresh();
+    }
+
+    public void openSettingsMenu(Player player, String section) {
+        settingsMenu.open(player, section, 0);
+    }
+
+    public void setLanguage(String language) {
+        getConfig().set("language", language);
+        saveConfig();
+        deathScoreboardManager.reload();
+        thirstManager.refresh();
+        featureMenu.refresh();
+        settingsMenu.refresh();
+        playerMenu.refresh();
+    }
+
+    public void setFeatureEnabled(String path, boolean enabled) {
+        setSetting(path, enabled);
+    }
+
+    public void setSetting(String path, Object value) {
+        if (path.equals("language")) {
+            setLanguage((String) value);
+            return;
+        }
+        getConfig().set(path, value);
+        saveConfig();
+        switch (path.split("\\.", 2)[0]) {
+            case "blow", "excitement", "tripping" -> deathMechanicsManager.reload();
+            case "leash" -> leashManager.reload();
+            case "disease" -> diseaseManager.reload();
+            case "sit" -> sitManager.reload();
+            case "scheduled_sound" -> scheduledSoundManager.reload();
+            case "death_scoreboard" -> deathScoreboardManager.reload();
+            case "thirst" -> thirstManager.reload();
+        }
+        featureMenu.refresh();
+        settingsMenu.refresh();
+        playerMenu.refresh();
     }
 
     private boolean updateConfiguration() {

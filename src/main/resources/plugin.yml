@@ -11,8 +11,7 @@ libraries:
 commands:
   secret:
     description: Verwaltet das Secret-Plugin.
-    usage: /secret <reload|heilen|anstecken <Spieler>|funktion <on|off>>
-    permission: secret.admin
+    usage: /secret [menu] | language <de|en> | reload | heal <player> | infect <player> | <feature> <on|off>
   sit:
     description: Setzt eine angeleinte Person hin.
     usage: /sit <angeleinter>

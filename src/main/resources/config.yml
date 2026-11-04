@@ -1,4 +1,36 @@
+language: "de"
+
+thirst:
+  enabled: true
+  drain_interval_seconds: 60
+  accelerated_drain_multiplier: 2
+  damage_interval_seconds: 5
+  damage: 1.0
+  water_bottle_restore: 6
+  milk_restore: 6
+  positive_potion_restore: 4
+
+translations:
+  en:
+    messages:
+      same_block: "<player> died from a blowjob."
+      excitement: "<player> died of excitement."
+      trip: "<player> tripped while walking and died."
+      leash_created: "<leashed> now belongs to <owner>."
+    disease:
+      death_message: "<player> died of a disease."
+      stages:
+        stage_1:
+          warning: "&eYou feel unwell."
+        stage_2:
+          warning: "&6Your disease is getting worse."
+        stage_3:
+          warning: "&cYour disease keeps getting worse!"
+        stage_4:
+          warning: "&4Your body is slowly giving up..."
+
 spawn:
+  enabled: true
   max_uses: 1
   window_seconds: 600
   allow_in_combat: false
@@ -8,6 +40,9 @@ scheduled_sound:
   enabled: true
   timezone: "Europe/Berlin"
   time: "20:00"
+
+death_scoreboard:
+  enabled: true
 
 messages:
   same_block: "<player> ist durch einen Blowjob gestorben."

@@ -117,7 +117,8 @@ public final class LeashManager implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onMove(PlayerMoveEvent event) {
-        if (event.getTo() == null || event.getFrom().distanceSquared(event.getTo()) <= 0.0D) {
+        if (!plugin.getConfig().getBoolean("leash.enabled", true)
+                || event.getTo() == null || event.getFrom().distanceSquared(event.getTo()) <= 0.0D) {
             return;
         }
 
@@ -225,6 +226,10 @@ public final class LeashManager implements Listener {
     }
 
     private void refresh(UUID targetId) {
+        if (!plugin.getConfig().getBoolean("leash.enabled", true)) {
+            removeVisual(targetId);
+            return;
+        }
         UUID ownerId = ownerByLeashed.get(targetId);
         Player target = Bukkit.getPlayer(targetId);
         Player owner = ownerId == null ? null : Bukkit.getPlayer(ownerId);

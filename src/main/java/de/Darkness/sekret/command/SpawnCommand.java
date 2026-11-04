@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
 
+import static de.Darkness.sekret.util.PluginMessages.text;
+
 public final class SpawnCommand implements CommandExecutor, TabCompleter, Listener {
 
     private final SekretPlugin plugin;
@@ -44,29 +46,34 @@ public final class SpawnCommand implements CommandExecutor, TabCompleter, Listen
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(ChatColor.RED + "Dieser Befehl ist nur für Spieler verfügbar.");
+            sender.sendMessage(text(plugin, "§cDieser Befehl ist nur für Spieler verfügbar.", "§cOnly players can use this command."));
+            return true;
+        }
+
+        if (!plugin.getConfig().getBoolean("spawn.enabled", true)) {
+            player.sendMessage(text(plugin, player, "§cDer Spawn-Befehl ist deaktiviert.", "§cThe spawn command is disabled."));
             return true;
         }
 
         if (args.length == 1 && args[0].equalsIgnoreCase("set")) {
             if (!canSetSpawn(player)) {
-                player.sendMessage(ChatColor.RED + "Du darfst den Server-Spawn nicht festlegen.");
+                player.sendMessage(text(plugin, player, "§cDu darfst den Server-Spawn nicht festlegen.", "§cYou may not set the server spawn."));
                 return true;
             }
             Location location = player.getLocation();
             if (!player.getWorld().setSpawnLocation(location)) {
-                player.sendMessage(ChatColor.RED + "Der Server-Spawn konnte hier nicht festgelegt werden.");
+                player.sendMessage(text(plugin, player, "§cDer Server-Spawn konnte hier nicht festgelegt werden.", "§cThe server spawn could not be set here."));
                 return true;
             }
             plugin.getConfig().set("spawn.locations", null);
             plugin.getConfig().set("spawn.location", location);
             plugin.saveConfig();
-            player.sendMessage(ChatColor.GREEN + "Der gemeinsame Server-Spawn wurde festgelegt.");
+            player.sendMessage(text(plugin, player, "§aDer gemeinsame Server-Spawn wurde festgelegt.", "§aThe shared server spawn has been set."));
             return true;
         }
 
         if (args.length != 0) {
-            player.sendMessage(ChatColor.RED + "Verwendung: /spawn" + (canSetSpawn(player) ? " [set]" : ""));
+            player.sendMessage(text(plugin, player, "§cVerwendung: /spawn", "§cUsage: /spawn") + (canSetSpawn(player) ? " [set]" : ""));
             return true;
         }
 
@@ -76,7 +83,8 @@ public final class SpawnCommand implements CommandExecutor, TabCompleter, Listen
         if (!plugin.getConfig().getBoolean("spawn.allow_in_combat", false)
                 && lastFight != null && now - lastFight < combatDuration) {
             long seconds = (combatDuration - (now - lastFight) + 999L) / 1000L;
-            player.sendMessage(ChatColor.RED + "Du bist im Kampf! Warte noch " + seconds + " Sekunden ohne Kampf.");
+            player.sendMessage(text(plugin, player, "§cDu bist im Kampf! Warte noch " + seconds + " Sekunden ohne Kampf.",
+                    "§cYou are in combat! Wait " + seconds + " more seconds without fighting."));
             return true;
         }
 
@@ -88,14 +96,16 @@ public final class SpawnCommand implements CommandExecutor, TabCompleter, Listen
         if (uses.size() >= maxUses) {
             long nextUse = uses.get(uses.size() - maxUses) + window;
             long seconds = Math.max(1L, (nextUse - now + 999L) / 1000L);
-            player.sendMessage(ChatColor.RED + "Dein Spawn-Limit ist erreicht. Warte noch "
-                    + (seconds / 60L) + " Minuten und " + (seconds % 60L) + " Sekunden.");
+            player.sendMessage(text(plugin, player, "§cDein Spawn-Limit ist erreicht. Warte noch "
+                    + (seconds / 60L) + " Minuten und " + (seconds % 60L) + " Sekunden.",
+                    "§cYour spawn limit is reached. Wait " + (seconds / 60L) + " minutes and " + (seconds % 60L) + " seconds."));
             return true;
         }
 
         Location destination = plugin.getConfig().getLocation("spawn.location");
         if (destination == null || destination.getWorld() == null) {
-            player.sendMessage(ChatColor.RED + "Es ist kein verfügbarer Server-Spawn festgelegt. Ein Admin muss /spawn set ausführen.");
+            player.sendMessage(text(plugin, player, "§cEs ist kein verfügbarer Server-Spawn festgelegt. Ein Admin muss /spawn set ausführen.",
+                    "§cNo available server spawn is set. An admin must use /spawn set."));
             return true;
         }
         if (player.teleport(destination)) {
@@ -106,9 +116,9 @@ public final class SpawnCommand implements CommandExecutor, TabCompleter, Listen
             } catch (IOException exception) {
                 plugin.getLogger().log(Level.WARNING, "Spawn-Nutzungen konnten nicht gespeichert werden.", exception);
             }
-            player.sendMessage(ChatColor.GREEN + "Du wurdest zum Server-Spawn teleportiert.");
+            player.sendMessage(text(plugin, player, "§aDu wurdest zum Server-Spawn teleportiert.", "§aYou were teleported to the server spawn."));
         } else {
-            player.sendMessage(ChatColor.RED + "Die Teleportation wurde verhindert.");
+            player.sendMessage(text(plugin, player, "§cDie Teleportation wurde verhindert.", "§cThe teleportation was prevented."));
         }
         return true;
     }

@@ -38,6 +38,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static de.Darkness.sekret.util.PluginMessages.text;
+
 public final class DiseaseManager implements Listener {
 
     private final SekretPlugin plugin;
@@ -66,6 +68,16 @@ public final class DiseaseManager implements Listener {
             monitorTask.cancel();
             monitorTask = null;
         }
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            DiseaseData data = diseases.get(player.getUniqueId());
+            if (data != null) {
+                if (plugin.getConfig().getBoolean("disease.enabled", true)) {
+                    applyEffects(player, data.stage());
+                } else {
+                    removeDiseaseEffects(player);
+                }
+            }
+        }
         scheduleMonitor();
     }
 
@@ -93,11 +105,11 @@ public final class DiseaseManager implements Listener {
     }
 
     public boolean infect(Player player) {
-        if (diseases.containsKey(player.getUniqueId())) {
+        if (!plugin.getConfig().getBoolean("disease.enabled", true) || diseases.containsKey(player.getUniqueId())) {
             return false;
         }
         diseases.put(player.getUniqueId(), new DiseaseData(1, 0L, 0L, 0L));
-        player.sendMessage("§eDu fühlst dich plötzlich krank...");
+        player.sendMessage(text(plugin, player, "§eDu fühlst dich plötzlich krank...", "§eYou suddenly feel sick..."));
         applyEffects(player, 1);
         saveData();
         return true;
@@ -111,7 +123,7 @@ public final class DiseaseManager implements Listener {
         ItemStack item = event.getItem();
         String healingItem = plugin.getConfig().getString("disease.healing.item", "GOLDEN_APPLE");
         if (item.getType().name().equalsIgnoreCase(healingItem) && heal(event.getPlayer())) {
-            event.getPlayer().sendMessage("§aDu fühlst dich wieder gesund.");
+            event.getPlayer().sendMessage(text(plugin, event.getPlayer(), "§aDu fühlst dich wieder gesund.", "§aYou feel healthy again."));
         }
     }
 
@@ -175,7 +187,7 @@ public final class DiseaseManager implements Listener {
             saveData();
         }
         if (causedByDisease) {
-            event.setDeathMessage(PluginMessages.format(plugin.getConfig().getString("disease.death_message", "<player> ist an einer Krankheit gestorben."), event.getEntity(), null, null));
+            event.setDeathMessage(PluginMessages.format(PluginMessages.configured(plugin, "disease.death_message"), event.getEntity(), null, null));
         }
     }
 
@@ -277,7 +289,8 @@ public final class DiseaseManager implements Listener {
     }
 
     private void accelerate(Player player, String activity) {
-        if (!plugin.getConfig().getBoolean("disease.acceleration." + activity, false)) {
+        if (!plugin.getConfig().getBoolean("disease.enabled", true)
+                || !plugin.getConfig().getBoolean("disease.acceleration." + activity, false)) {
             return;
         }
         DiseaseData data = diseases.get(player.getUniqueId());
@@ -323,7 +336,7 @@ public final class DiseaseManager implements Listener {
                     return;
                 }
                 data = new DiseaseData(data.stage() + 1, 0L, 0L, 0L);
-                player.sendMessage("§cDeine Krankheit wird immer schlimmer!");
+                player.sendMessage(text(plugin, player, "§cDeine Krankheit wird immer schlimmer!", "§cYour disease is getting worse!"));
                 applyEffects(player, data.stage());
             } else {
                 data = new DiseaseData(data.stage(), elapsed, data.damageElapsedSeconds(), data.warningElapsedSeconds());
@@ -350,7 +363,7 @@ public final class DiseaseManager implements Listener {
         }
         long warningInterval = Math.max(1L, section.getLong("warning_interval_seconds", 30L));
         if (warningElapsed >= warningInterval) {
-            String warning = section.getString("warning", "");
+            String warning = PluginMessages.configured(plugin, player, "disease.stages.stage_" + data.stage() + ".warning");
             if (!warning.isBlank()) {
                 player.sendMessage(ChatColor.translateAlternateColorCodes('&', warning));
             }
@@ -362,6 +375,9 @@ public final class DiseaseManager implements Listener {
     }
 
     private void applyEffects(Player player, int stage) {
+        if (!plugin.getConfig().getBoolean("disease.enabled", true)) {
+            return;
+        }
         ConfigurationSection section = stageSection(stage);
         if (section == null) {
             return;

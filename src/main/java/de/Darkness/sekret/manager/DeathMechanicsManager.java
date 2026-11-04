@@ -140,7 +140,7 @@ public final class DeathMechanicsManager implements Listener {
             case EXCITEMENT -> "messages.excitement";
             case TRIP -> "messages.trip";
         };
-        event.setDeathMessage(PluginMessages.format(plugin.getConfig().getString(messagePath, ""), player, null, null));
+        event.setDeathMessage(PluginMessages.format(PluginMessages.configured(plugin, messagePath), player, null, null));
     }
 
     private void scheduleExcitementMonitor() {
@@ -229,7 +229,7 @@ public final class DeathMechanicsManager implements Listener {
         long delay = Math.max(1L, section.getLong("animation_delay_ticks", 4L));
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             pendingTrips.remove(player.getUniqueId());
-            if (player.isOnline() && canKill(player)) {
+            if (plugin.getConfig().getBoolean("tripping.enabled", true) && player.isOnline() && canKill(player)) {
                 kill(player, DeathReason.TRIP);
             }
         }, delay);
