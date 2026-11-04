@@ -4,7 +4,9 @@ import de.Darkness.sekret.SekretPlugin;
 import de.Darkness.sekret.util.PluginMessages;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Keyed;
 import org.bukkit.Location;
+import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
@@ -27,6 +29,7 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -44,6 +47,8 @@ public final class DiseaseManager implements Listener {
     private BukkitTask monitorTask;
     private long lastInfectionCheck;
     private long lastSave;
+    private Method biomeLookup;
+    private boolean biomeLookupUnavailable;
 
     public DiseaseManager(SekretPlugin plugin) {
         this.plugin = plugin;
@@ -235,13 +240,40 @@ public final class DiseaseManager implements Listener {
     }
 
     private boolean canBeRandomlyInfected(Player player) {
-        String biome = player.getLocation().getBlock().getBiome().name();
+        String biome = biomeName(player);
+        if (biome == null) {
+            return false;
+        }
         for (String configuredBiome : plugin.getConfig().getStringList("disease.infection_biomes")) {
             if (biome.equalsIgnoreCase(configuredBiome)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private String biomeName(Player player) {
+        if (biomeLookupUnavailable) {
+            return null;
+        }
+        try {
+            // Biome is an enum on older APIs and an interface on newer ones.
+            if (biomeLookup == null) {
+                biomeLookup = Block.class.getMethod("getBiome");
+            }
+            Object biome = biomeLookup.invoke(player.getLocation().getBlock());
+            if (biome instanceof Enum<?> enumBiome) {
+                return enumBiome.name();
+            }
+            if (biome instanceof Keyed keyedBiome) {
+                return keyedBiome.getKey().getKey().toUpperCase(Locale.ROOT);
+            }
+            throw new ReflectiveOperationException("Unbekannter Biom-Typ: " + biome);
+        } catch (ReflectiveOperationException | LinkageError exception) {
+            biomeLookupUnavailable = true;
+            plugin.getLogger().warning("Biom-Abfrage auf dieser Serverversion nicht unterstützt. Nur die biomabhängigen Krankheitsregeln werden bis zum Neustart deaktiviert: " + exception);
+            return null;
+        }
     }
 
     private void accelerate(Player player, String activity) {
@@ -259,7 +291,10 @@ public final class DiseaseManager implements Listener {
         if (data == null) {
             return;
         }
-        String biome = player.getLocation().getBlock().getBiome().name();
+        String biome = biomeName(player);
+        if (biome == null) {
+            return;
+        }
         for (String configuredBiome : plugin.getConfig().getStringList("disease.acceleration.biomes")) {
             if (biome.equalsIgnoreCase(configuredBiome)) {
                 progress(player, data, Math.max(1L, plugin.getConfig().getLong("disease.acceleration.seconds_per_activity", 5L)));
