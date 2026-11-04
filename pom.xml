@@ -5,9 +5,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>de.Darkness</groupId>
-    <artifactId>secret</artifactId>
-    <version>1.0.0</version>
-    <name>Secret</name>
+    <artifactId>vision</artifactId>
+    <version>1.0.1</version>
+    <name>Vision</name>
     <description>Chaotische Todesmechaniken für Spigot, Paper und Purpur</description>
 
     <properties>
@@ -48,7 +48,7 @@
     </dependencies>
 
     <build>
-        <finalName>secret</finalName>
+        <finalName>vision-${project.version}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

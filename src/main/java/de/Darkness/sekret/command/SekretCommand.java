@@ -36,7 +36,7 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if ((args.length == 1 && args[0].equalsIgnoreCase("menu"))
-                || (args.length == 0 && !sender.hasPermission("secret.admin"))) {
+                || (args.length == 0 && !sender.hasPermission("vision.admin"))) {
             if (sender instanceof Player player) {
                 plugin.getPlayerMenu().open(player);
             } else {
@@ -44,7 +44,7 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
             }
             return true;
         }
-        if (!sender.hasPermission("secret.admin")) {
+        if (!sender.hasPermission("vision.admin")) {
             sender.sendMessage(text(plugin, sender, "§cDafür hast du keine Berechtigung.", "§cYou do not have permission."));
             return true;
         }
@@ -72,7 +72,7 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
             plugin.reloadPlugin();
-            sender.sendMessage(text(plugin, sender, "§aDie Secret-Konfiguration wurde neu geladen.", "§aThe Secret configuration has been reloaded."));
+            sender.sendMessage(text(plugin, sender, "§aDie Vision-Konfiguration wurde neu geladen.", "§aThe Vision configuration has been reloaded."));
             return true;
         }
 
@@ -135,7 +135,7 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             List<String> completions = new ArrayList<>();
             List<String> subcommands = new ArrayList<>(List.of("menu"));
-            if (sender.hasPermission("secret.admin")) {
+            if (sender.hasPermission("vision.admin")) {
                 subcommands.addAll(List.of("admin", "reload", "heilen", "anstecken", "heal", "infect", "language", "sprache"));
                 subcommands.addAll(FEATURE_PATHS.keySet());
             }
@@ -146,7 +146,7 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
             }
             return completions;
         }
-        if (args.length == 2 && (args[0].equalsIgnoreCase("language") || args[0].equalsIgnoreCase("sprache")) && sender.hasPermission("secret.admin")) {
+        if (args.length == 2 && (args[0].equalsIgnoreCase("language") || args[0].equalsIgnoreCase("sprache")) && sender.hasPermission("vision.admin")) {
             List<String> completions = new ArrayList<>();
             for (String language : List.of("de", "en")) {
                 if (language.startsWith(args[1].toLowerCase(java.util.Locale.ROOT))) {
@@ -156,7 +156,7 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
             return completions;
         }
         if (args.length == 2 && (args[0].equalsIgnoreCase("heilen") || args[0].equalsIgnoreCase("anstecken")
-                || args[0].equalsIgnoreCase("heal") || args[0].equalsIgnoreCase("infect")) && sender.hasPermission("secret.admin")) {
+                || args[0].equalsIgnoreCase("heal") || args[0].equalsIgnoreCase("infect")) && sender.hasPermission("vision.admin")) {
             List<String> completions = new ArrayList<>();
             for (Player player : Bukkit.getOnlinePlayers()) {
                 if (player.getName().toLowerCase().startsWith(args[1].toLowerCase())) {
@@ -165,7 +165,7 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
             }
             return completions;
         }
-        if (args.length == 2 && FEATURE_PATHS.containsKey(args[0].toLowerCase()) && sender.hasPermission("secret.admin")) {
+        if (args.length == 2 && FEATURE_PATHS.containsKey(args[0].toLowerCase()) && sender.hasPermission("vision.admin")) {
             List<String> completions = new ArrayList<>();
             for (String state : List.of("on", "off")) {
                 if (state.startsWith(args[1].toLowerCase())) {

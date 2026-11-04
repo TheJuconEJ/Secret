@@ -54,6 +54,7 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
     private final List<String> entries = new ArrayList<>();
     private final Map<String, Scoreboard> boards = new HashMap<>();
     private boolean enabled;
+    private boolean numberFormatWarningLogged;
 
     public DeathScoreboardManager(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -76,7 +77,8 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
         }
         for (String language : List.of("de", "en")) {
             Scoreboard board = plugin.getServer().getScoreboardManager().getNewScoreboard();
-            Objective objective = board.registerNewObjective("secret_deaths", "dummy", title(language));
+            Objective objective = board.registerNewObjective("vision_deaths", "dummy", title(language));
+            hideScoreNumbers(objective);
             objective.setDisplaySlot(DisplaySlot.SIDEBAR);
             for (int i = 0; i < ROW_COUNT; i++) {
                 Team team = board.registerNewTeam("death_row_" + i);
@@ -249,9 +251,10 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
         previousBoards.putIfAbsent(id, player.getScoreboard());
         String selectedLanguage = language(plugin, player);
         Scoreboard scoreboard = boards.get(selectedLanguage);
-        Objective objective = scoreboard.getObjective("secret_deaths");
+        Objective objective = scoreboard.getObjective("vision_deaths");
         Scoreboard animated = plugin.getServer().getScoreboardManager().getNewScoreboard();
-        Objective animatedObjective = animated.registerNewObjective("secret_deaths", "dummy", title(selectedLanguage));
+        Objective animatedObjective = animated.registerNewObjective("vision_deaths", "dummy", title(selectedLanguage));
+        hideScoreNumbers(animatedObjective);
         List<Team> animatedRows = new ArrayList<>();
         int width = ChatColor.stripColor(title(selectedLanguage)).length();
         for (int i = 0; i < ROW_COUNT; i++) {
@@ -303,6 +306,19 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
             }
         }.runTaskTimer(plugin, 0L, 2L);
         animations.put(id, task);
+    }
+
+    private void hideScoreNumbers(Objective objective) {
+        try {
+            Class<?> formatClass = Class.forName("io.papermc.paper.scoreboard.numbers.NumberFormat");
+            Object blankFormat = formatClass.getMethod("blank").invoke(null);
+            Objective.class.getMethod("numberFormat", formatClass).invoke(objective, blankFormat);
+        } catch (ReflectiveOperationException exception) {
+            if (!numberFormatWarningLogged) {
+                plugin.getLogger().warning("Die rechte Zahlenspalte der Todesliste konnte nicht ausgeblendet werden. Dafür wird Paper/Purpur ab Minecraft 1.20.3 benötigt.");
+                numberFormatWarningLogged = true;
+            }
+        }
     }
 
     private String clip(String text, int width) {
@@ -357,7 +373,7 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
 
     private void setLine(Scoreboard board, int index, String value) {
         board.getTeam("death_row_" + index).setPrefix(value);
-        board.getObjective("secret_deaths").getScore(entries.get(index)).setScore(ROW_COUNT - index);
+        board.getObjective("vision_deaths").getScore(entries.get(index)).setScore(ROW_COUNT - index);
     }
 
     private void load() {

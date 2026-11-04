@@ -2,10 +2,9 @@ package de.Darkness.sekret.manager;
 
 import com.cryptomorin.xseries.XMaterial;
 import de.Darkness.sekret.SekretPlugin;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.GameMode;
-import org.bukkit.boss.BarColor;
-import org.bukkit.boss.BarStyle;
-import org.bukkit.boss.BossBar;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -26,13 +25,12 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
-
-import static de.Darkness.sekret.util.PluginMessages.text;
 
 public final class ThirstManager implements Listener {
 
@@ -52,7 +50,7 @@ public final class ThirstManager implements Listener {
     private final Map<UUID, Integer> water = new HashMap<>();
     private final Map<UUID, Integer> elapsed = new HashMap<>();
     private final Map<UUID, Integer> damageElapsed = new HashMap<>();
-    private final Map<UUID, BossBar> bars = new HashMap<>();
+    private final Set<UUID> displayedBars = new HashSet<>();
     private BukkitTask task;
     private int saveTicks;
 
@@ -83,8 +81,10 @@ public final class ThirstManager implements Listener {
             task.cancel();
             task = null;
         }
-        bars.values().forEach(BossBar::removeAll);
-        bars.clear();
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            clearBar(player);
+        }
+        displayedBars.clear();
         damageElapsed.clear();
         if (enabled()) {
             task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
@@ -97,8 +97,10 @@ public final class ThirstManager implements Listener {
         if (task != null) {
             task.cancel();
         }
-        bars.values().forEach(BossBar::removeAll);
-        bars.clear();
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            clearBar(player);
+        }
+        displayedBars.clear();
         save();
     }
 
@@ -160,23 +162,29 @@ public final class ThirstManager implements Listener {
     }
 
     private void updateBar(Player player) {
-        UUID id = player.getUniqueId();
         if (!active(player)) {
-            BossBar bar = bars.remove(id);
-            if (bar != null) {
-                bar.removeAll();
-            }
+            clearBar(player);
             return;
         }
+        UUID id = player.getUniqueId();
         int level = water.computeIfAbsent(id, key -> MAX_WATER);
-        BossBar bar = bars.computeIfAbsent(id, key -> {
-            BossBar created = plugin.getServer().createBossBar("", BarColor.BLUE, BarStyle.SEGMENTED_20);
-            created.addPlayer(player);
-            return created;
-        });
-        bar.setTitle(text(plugin, player, "§bWasser: ", "§bWater: ") + level + "/" + MAX_WATER);
-        bar.setProgress(level / (double) MAX_WATER);
-        bar.setColor(level == 0 ? BarColor.RED : BarColor.BLUE);
+        StringBuilder droplets = new StringBuilder();
+        for (int index = 0; index < MAX_WATER / 2; index++) {
+            if (index > 0) {
+                droplets.append(' ');
+            }
+            int remaining = level - index * 2;
+            droplets.append(remaining >= 2 ? "§b" : remaining == 1 ? "§3" : "§8");
+            droplets.append("💧");
+        }
+        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(droplets.toString()));
+        displayedBars.add(id);
+    }
+
+    private void clearBar(Player player) {
+        if (displayedBars.remove(player.getUniqueId())) {
+            player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(""));
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -255,10 +263,7 @@ public final class ThirstManager implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         damageElapsed.remove(event.getPlayer().getUniqueId());
-        BossBar bar = bars.remove(event.getPlayer().getUniqueId());
-        if (bar != null) {
-            bar.removeAll();
-        }
+        displayedBars.remove(event.getPlayer().getUniqueId());
         save();
     }
 

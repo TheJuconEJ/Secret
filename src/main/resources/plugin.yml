@@ -1,5 +1,5 @@
-name: Secret
-version: 1.0.0
+name: Vision
+version: 1.0.1
 main: de.Darkness.sekret.SekretPlugin
 api-version: '1.21'
 author: Darkness
@@ -9,9 +9,9 @@ libraries:
   - javazoom:jlayer:1.0.1
 
 commands:
-  secret:
-    description: Verwaltet das Secret-Plugin.
-    usage: /secret [menu] | language <de|en> | reload | heal <player> | infect <player> | <feature> <on|off>
+  vision:
+    description: Verwaltet das Vision-Plugin.
+    usage: /vision [menu] | language <de|en> | reload | heal <player> | infect <player> | <feature> <on|off>
   sit:
     description: Setzt eine angeleinte Person hin.
     usage: /sit <angeleinter>
@@ -23,9 +23,9 @@ commands:
     usage: /todesliste [an|aus]
 
 permissions:
-  secret.spawn.set:
+  vision.spawn.set:
     description: Erlaubt das Festlegen des Weltspawns mit /spawn set.
     default: op
-  secret.admin:
-    description: Erlaubt die Verwaltung des Secret-Plugins und das Heilen von Spielern.
+  vision.admin:
+    description: Erlaubt die Verwaltung des Vision-Plugins und das Heilen von Spielern.
     default: op

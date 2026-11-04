@@ -108,7 +108,7 @@ public final class ScheduledSoundManager implements VoicechatPlugin {
 
     @Override
     public String getPluginId() {
-        return "secret_scheduled_sound";
+        return "vision_scheduled_sound";
     }
 
     @Override

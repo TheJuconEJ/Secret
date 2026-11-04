@@ -145,7 +145,7 @@ public final class SpawnCommand implements CommandExecutor, TabCompleter, Listen
     }
 
     private boolean canSetSpawn(CommandSender sender) {
-        return sender.hasPermission("secret.spawn.set") || sender.hasPermission("secret.admin");
+        return sender.hasPermission("vision.spawn.set") || sender.hasPermission("vision.admin");
     }
 
     @Override

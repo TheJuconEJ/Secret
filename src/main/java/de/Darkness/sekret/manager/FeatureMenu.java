@@ -28,7 +28,7 @@ public final class FeatureMenu implements Listener {
     }
 
     public void open(Player player) {
-        if (!player.hasPermission("secret.admin")) {
+        if (!player.hasPermission("vision.admin")) {
             player.sendMessage(text(plugin, player, "§cDafür hast du keine Berechtigung.", "§cYou do not have permission."));
             return;
         }
@@ -75,7 +75,7 @@ public final class FeatureMenu implements Listener {
             inventory.setItem(feature.getSlot(), item(feature.getIcon(),
                     (enabled ? "§a" : "§c") + name(player, feature), lore));
         }
-        inventory.setItem(36, item("BOOK", text(plugin, player, "§6Secret-Verwaltung", "§6Secret Administration"), List.of(
+        inventory.setItem(36, item("BOOK", text(plugin, player, "§6Vision-Verwaltung", "§6Vision Administration"), List.of(
                 text(plugin, player, "§7Änderungen gelten sofort für alle Spieler.", "§7Changes apply immediately to all players."),
                 text(plugin, player, "§7Einstellungen bleiben nach Neustarts erhalten.", "§7Settings persist after restarts."),
                 text(plugin, player, "§7Nur Admins können dieses Menü bedienen.", "§7Only admins can use this menu."))));
@@ -92,7 +92,7 @@ public final class FeatureMenu implements Listener {
     }
 
     private String title(Player player) {
-        return text(plugin, player, "§8Secret §7| §8Funktionen", "§8Secret §7| §8Features");
+        return text(plugin, player, "§8Vision §7| §8Funktionen", "§8Vision §7| §8Features");
     }
 
     private String name(Player player, Feature feature) {
@@ -152,7 +152,7 @@ public final class FeatureMenu implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
-        if (!player.hasPermission("secret.admin")) {
+        if (!player.hasPermission("vision.admin")) {
             player.sendMessage(text(plugin, player, "§cDafür hast du keine Berechtigung.", "§cYou do not have permission."));
             return;
         }
@@ -169,7 +169,7 @@ public final class FeatureMenu implements Listener {
         }
         if (event.getRawSlot() == 44) {
             plugin.getServer().getScheduler().runTask(plugin, () -> {
-                if (player.isOnline() && player.hasPermission("secret.admin") && player.getOpenInventory().getTopInventory() == top) {
+                if (player.isOnline() && player.hasPermission("vision.admin") && player.getOpenInventory().getTopInventory() == top) {
                     plugin.setLanguage(plugin.getConfig().getString("language", "de").equalsIgnoreCase("en") ? "de" : "en");
                     player.sendMessage(text(plugin, player, "§aStandardsprache geändert. Persönliche Sprachen bleiben erhalten.",
                             "§aDefault language changed. Personal languages are kept."));

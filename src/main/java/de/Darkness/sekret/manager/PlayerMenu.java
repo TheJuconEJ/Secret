@@ -69,7 +69,7 @@ public final class PlayerMenu implements Listener {
                 text(plugin, player, "§7Gilt nur für dich, nicht für andere Spieler.", "§7Applies only to you, not to other players."),
                 text(plugin, player, "§eKlicken für Englisch", "§eClick for German"))));
         inventory.setItem(26, item("BARRIER", text(plugin, player, "§cSchließen", "§cClose"), List.of()));
-        if (player.hasPermission("secret.admin")) {
+        if (player.hasPermission("vision.admin")) {
             inventory.setItem(22, item("COMPARATOR", text(plugin, player, "§6Admin-Verwaltung", "§6Admin settings"), List.of(
                     text(plugin, player, "§7Globale Funktionen und Einstellungen bearbeiten.", "§7Edit global features and settings."))));
         }
@@ -131,7 +131,7 @@ public final class PlayerMenu implements Listener {
                     open(player);
                 }
                 case 22 -> {
-                    if (player.hasPermission("secret.admin")) {
+                    if (player.hasPermission("vision.admin")) {
                         plugin.openFeatureMenu(player);
                     }
                 }
@@ -153,7 +153,7 @@ public final class PlayerMenu implements Listener {
 
         private MenuHolder(Player player) {
             inventory = plugin.getServer().createInventory(this, 27,
-                    text(plugin, player, "§8Secret §7| §8Mein Menü", "§8Secret §7| §8My menu"));
+                    text(plugin, player, "§8Vision §7| §8Mein Menü", "§8Vision §7| §8My menu"));
         }
     }
 }

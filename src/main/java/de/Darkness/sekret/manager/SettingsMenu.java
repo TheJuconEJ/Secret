@@ -76,7 +76,7 @@ public final class SettingsMenu implements Listener {
     }
 
     private boolean allowed(Player player) {
-        if (player.hasPermission("secret.admin")) {
+        if (player.hasPermission("vision.admin")) {
             return true;
         }
         player.sendMessage(text(plugin, player, "§cDafür hast du keine Berechtigung.", "§cYou do not have permission."));
@@ -534,7 +534,7 @@ public final class SettingsMenu implements Listener {
             this.section = section;
             this.page = page;
             this.entries = entries;
-            this.inventory = plugin.getServer().createInventory(this, 54, text(plugin, player, "§8Secret | Einstellungen", "§8Secret | Settings"));
+            this.inventory = plugin.getServer().createInventory(this, 54, text(plugin, player, "§8Vision | Einstellungen", "§8Vision | Settings"));
         }
     }
 

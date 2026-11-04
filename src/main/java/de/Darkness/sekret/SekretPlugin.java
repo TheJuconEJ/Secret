@@ -80,7 +80,7 @@ public final class SekretPlugin extends JavaPlugin {
             deathsCommand.setExecutor(deathScoreboardManager);
             deathsCommand.setTabCompleter(deathScoreboardManager);
         }
-        PluginCommand command = getCommand("secret");
+        PluginCommand command = getCommand("vision");
         if (command != null) {
             SekretCommand executor = new SekretCommand(this);
             command.setExecutor(executor);
