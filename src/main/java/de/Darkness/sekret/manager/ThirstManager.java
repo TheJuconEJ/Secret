@@ -15,6 +15,7 @@ import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.potion.PotionEffect;
@@ -23,9 +24,11 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -51,6 +54,10 @@ public final class ThirstManager implements Listener {
     private final Map<UUID, Integer> elapsed = new HashMap<>();
     private final Map<UUID, Integer> damageElapsed = new HashMap<>();
     private final Set<UUID> displayedBars = new HashSet<>();
+    private final Set<UUID> loadedResourcePacks = new HashSet<>();
+    private UUID resourcePackId = UUID.randomUUID();
+    private String resourcePackUrl;
+    private byte[] resourcePackHash;
     private BukkitTask task;
     private int saveTicks;
 
@@ -60,6 +67,10 @@ public final class ThirstManager implements Listener {
     }
 
     public void start() {
+        File resourcePack = new File(plugin.getDataFolder(), "Vision-Wassertropfen.zip");
+        if (!resourcePack.exists()) {
+            plugin.saveResource("Vision-Wassertropfen.zip", false);
+        }
         YamlConfiguration data = YamlConfiguration.loadConfiguration(dataFile);
         ConfigurationSection players = data.getConfigurationSection("players");
         if (players != null) {
@@ -86,6 +97,7 @@ public final class ThirstManager implements Listener {
         }
         displayedBars.clear();
         damageElapsed.clear();
+        reloadResourcePack();
         if (enabled()) {
             task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
             refresh();
@@ -99,9 +111,63 @@ public final class ThirstManager implements Listener {
         }
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             clearBar(player);
+            if (resourcePackUrl != null) {
+                player.removeResourcePack(resourcePackId);
+            }
         }
         displayedBars.clear();
+        loadedResourcePacks.clear();
         save();
+    }
+
+    private void reloadResourcePack() {
+        if (resourcePackUrl != null) {
+            for (Player player : plugin.getServer().getOnlinePlayers()) {
+                player.removeResourcePack(resourcePackId);
+            }
+        }
+        loadedResourcePacks.clear();
+        resourcePackId = UUID.randomUUID();
+        resourcePackUrl = null;
+        resourcePackHash = null;
+        String url = plugin.getConfig().getString("thirst.resource_pack.url", "").trim();
+        if (url.isEmpty()) {
+            return;
+        }
+        try {
+            URI uri = URI.create(url);
+            if ((!"https".equalsIgnoreCase(uri.getScheme()) && !"http".equalsIgnoreCase(uri.getScheme()))
+                    || uri.getHost() == null) {
+                throw new IllegalArgumentException("Die URL muss eine öffentliche HTTP- oder HTTPS-Adresse sein.");
+            }
+            String hash = plugin.getConfig().getString("thirst.resource_pack.sha1", "").trim();
+            if (!hash.isEmpty()) {
+                if (!hash.matches("[0-9a-fA-F]{40}")) {
+                    throw new IllegalArgumentException("Der SHA-1-Hash muss aus 40 Hexadezimalzeichen bestehen.");
+                }
+                resourcePackHash = HexFormat.of().parseHex(hash);
+            }
+            resourcePackUrl = uri.toASCIIString();
+        } catch (IllegalArgumentException exception) {
+            plugin.getLogger().warning("Wasser-Resourcepack wird nicht geladen: " + exception.getMessage());
+            return;
+        }
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            sendResourcePack(player);
+        }
+    }
+
+    private void sendResourcePack(Player player) {
+        if (resourcePackUrl == null) {
+            return;
+        }
+        try {
+            player.setResourcePack(resourcePackId, resourcePackUrl, resourcePackHash,
+                    "Vision: Resourcepack für volle, halbvolle und leere Wassertropfen laden?", false);
+        } catch (IllegalArgumentException exception) {
+            plugin.getLogger().warning("Wasser-Resourcepack für " + player.getName()
+                    + " konnte nicht angefordert werden: " + exception.getMessage());
+        }
     }
 
     public void refresh() {
@@ -168,14 +234,25 @@ public final class ThirstManager implements Listener {
         }
         UUID id = player.getUniqueId();
         int level = water.computeIfAbsent(id, key -> MAX_WATER);
+        boolean customGlyphs = loadedResourcePacks.contains(id);
+        String full = plugin.getConfig().getString("thirst.resource_pack.full", "\uE000");
+        String half = plugin.getConfig().getString("thirst.resource_pack.half", "\uE001");
+        String empty = plugin.getConfig().getString("thirst.resource_pack.empty", "\uE002");
         StringBuilder droplets = new StringBuilder();
+        if (customGlyphs) {
+            droplets.append("§r§f");
+        }
         for (int index = 0; index < MAX_WATER / 2; index++) {
-            if (index > 0) {
+            if (index > 0 && !customGlyphs) {
                 droplets.append(' ');
             }
             int remaining = level - index * 2;
-            droplets.append(remaining >= 2 ? "§b" : remaining == 1 ? "§3" : "§8");
-            droplets.append("💧");
+            if (customGlyphs) {
+                droplets.append(remaining >= 2 ? full : remaining == 1 ? half : empty);
+            } else {
+                droplets.append(remaining >= 2 ? "§b" : remaining == 1 ? "§3" : "§8");
+                droplets.append("§l💧");
+            }
         }
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(droplets.toString()));
         displayedBars.add(id);
@@ -239,6 +316,22 @@ public final class ThirstManager implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
+        sendResourcePack(event.getPlayer());
+        updateBar(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onResourcePackStatus(PlayerResourcePackStatusEvent event) {
+        if (!event.getID().equals(resourcePackId)) {
+            return;
+        }
+        switch (event.getStatus()) {
+            case SUCCESSFULLY_LOADED -> loadedResourcePacks.add(event.getPlayer().getUniqueId());
+            case ACCEPTED, DOWNLOADED -> {
+                return;
+            }
+            default -> loadedResourcePacks.remove(event.getPlayer().getUniqueId());
+        }
         updateBar(event.getPlayer());
     }
 
@@ -264,6 +357,7 @@ public final class ThirstManager implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         damageElapsed.remove(event.getPlayer().getUniqueId());
         displayedBars.remove(event.getPlayer().getUniqueId());
+        loadedResourcePacks.remove(event.getPlayer().getUniqueId());
         save();
     }
 
