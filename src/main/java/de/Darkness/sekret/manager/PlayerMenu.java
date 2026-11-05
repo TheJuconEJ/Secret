@@ -57,14 +57,16 @@ public final class PlayerMenu implements Listener {
         for (int slot = 0; slot < inventory.getSize(); slot++) {
             inventory.setItem(slot, border);
         }
-        boolean visible = plugin.getDeathScoreboardManager().isVisible(player);
         boolean enabled = plugin.getConfig().getBoolean("death_scoreboard.enabled", true);
-        inventory.setItem(11, item("SKELETON_SKULL", text(plugin, player, "§c§lTodesanzeige", "§c§lDeath leaderboard"), List.of(
-                text(plugin, player, "§7Nur deine Anzeige wird geändert.", "§7Only your own display is changed."),
-                text(plugin, player, "§7Deine Auswahl: ", "§7Your preference: ")
-                        + (visible ? text(plugin, player, "§aSichtbar", "§aVisible") : text(plugin, player, "§cAusgeblendet", "§cHidden")),
-                enabled ? text(plugin, player, "§eKlicken zum Umschalten", "§eClick to toggle")
-                        : text(plugin, player, "§6Vom Admin deaktiviert; Auswahl bleibt gespeichert.", "§6Disabled by admin; preference is still saved."))));
+        boolean visible = plugin.getDeathScoreboardManager().isVisible(player);
+        inventory.setItem(11, item("SKELETON_SKULL", text(plugin, player, "§c§lTodesliste", "§c§lDeath leaderboard"), List.of(
+                text(plugin, player, "§7Top 5, deine Tode und Gesamtsumme.", "§7Top 5, your deaths and the total."),
+                visible ? text(plugin, player, "§7Sidebar: §aSichtbar", "§7Sidebar: §aVisible")
+                        : text(plugin, player, "§7Sidebar: §cAusgeblendet", "§7Sidebar: §cHidden"),
+                text(plugin, player, "§7Deine Auswahl wird gespeichert.", "§7Your choice is saved."),
+                enabled ? (visible ? text(plugin, player, "§eKlicken zum Ausblenden", "§eClick to hide")
+                        : text(plugin, player, "§eKlicken zum Einblenden", "§eClick to show"))
+                        : text(plugin, player, "§6Vom Admin deaktiviert.", "§6Disabled by an admin."))));
         inventory.setItem(15, item("PAPER", text(plugin, player, "§b§lSprache: Deutsch", "§b§lLanguage: English"), List.of(
                 text(plugin, player, "§7Gilt nur für dich, nicht für andere Spieler.", "§7Applies only to you, not to other players."),
                 text(plugin, player, "§eKlicken für Englisch", "§eClick for German"))));
@@ -122,8 +124,8 @@ public final class PlayerMenu implements Listener {
             }
             switch (slot) {
                 case 11 -> {
-                    DeathScoreboardManager manager = plugin.getDeathScoreboardManager();
-                    manager.setVisible(player, !manager.isVisible(player));
+                    plugin.getDeathScoreboardManager().setVisible(player,
+                            !plugin.getDeathScoreboardManager().isVisible(player));
                     open(player);
                 }
                 case 15 -> {

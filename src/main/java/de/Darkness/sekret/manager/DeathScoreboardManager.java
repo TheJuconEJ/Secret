@@ -1,5 +1,6 @@
 package de.Darkness.sekret.manager;
 
+import lombok.Getter;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
@@ -16,16 +17,14 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -37,25 +36,20 @@ import java.util.UUID;
 import java.util.logging.Level;
 
 import static de.Darkness.sekret.util.PluginMessages.text;
-import static de.Darkness.sekret.util.PluginMessages.language;
 
 public final class DeathScoreboardManager implements Listener, CommandExecutor, TabCompleter {
 
     private static final int TOP_SIZE = 5;
-    private static final int ROW_COUNT = TOP_SIZE + 5;
+    private static final int ANIMATION_STEPS = 8;
 
     private final JavaPlugin plugin;
     private final File dataFile;
     private final Map<UUID, Integer> deaths = new HashMap<>();
     private final Map<UUID, String> names = new HashMap<>();
-    private final Map<UUID, Scoreboard> previousBoards = new HashMap<>();
     private final Set<UUID> hidden = new HashSet<>();
-    private final Map<UUID, Scoreboard> animationBoards = new HashMap<>();
-    private final Map<UUID, BukkitTask> animations = new HashMap<>();
-    private final List<String> entries = new ArrayList<>();
-    private final Map<String, Scoreboard> boards = new HashMap<>();
+    private final Map<UUID, Sidebar> sidebars = new HashMap<>();
     private boolean enabled;
-    private boolean numberFormatWarningLogged;
+    private boolean formatWarningLogged;
 
     public DeathScoreboardManager(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -71,44 +65,18 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
                 deaths.putIfAbsent(player.getUniqueId(), 0);
             }
         }
-
-        for (int i = 0; i < ROW_COUNT; i++) {
-            String entry = ChatColor.values()[i].toString() + ChatColor.RESET;
-            entries.add(entry);
-        }
-        for (String language : List.of("de", "en")) {
-            Scoreboard board = plugin.getServer().getScoreboardManager().getNewScoreboard();
-            Objective objective = board.registerNewObjective("vision_deaths", "dummy", title(language));
-            hideScoreNumbers(objective);
-            objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-            for (int i = 0; i < ROW_COUNT; i++) {
-                Team team = board.registerNewTeam("death_row_" + i);
-                team.addEntry(entries.get(i));
-            }
-            boards.put(language, board);
-        }
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             remember(player);
-            show(player);
+            refreshPlayer(player);
         }
-        refresh();
         save();
     }
 
     public void reload() {
         enabled = plugin.getConfig().getBoolean("death_scoreboard.enabled", true);
-        for (BukkitTask task : animations.values()) {
-            task.cancel();
-        }
-        animations.clear();
         for (Player player : plugin.getServer().getOnlinePlayers()) {
-            restore(player);
-            if (enabled) {
-                show(player);
-            }
+            refreshPlayer(player);
         }
-        animationBoards.clear();
-        refresh();
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -125,30 +93,27 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
-        remember(event.getPlayer());
-        show(event.getPlayer());
+        Player player = event.getPlayer();
+        remember(player);
         save();
         refresh();
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (player.isOnline()) {
+                refreshPlayer(player);
+            }
+        });
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        UUID id = event.getPlayer().getUniqueId();
-        cancelAnimation(id);
-        restore(event.getPlayer());
+        removeSidebar(event.getPlayer());
     }
 
     public void shutdown() {
         save();
-        for (BukkitTask task : animations.values()) {
-            task.cancel();
-        }
-        animations.clear();
         for (Player player : plugin.getServer().getOnlinePlayers()) {
-            restore(player);
+            removeSidebar(player);
         }
-        animationBoards.clear();
-        previousBoards.clear();
     }
 
     @Override
@@ -157,26 +122,15 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
             sender.sendMessage(text(plugin, sender, "§cNur Spieler können die Todesliste umschalten.", "§cOnly players can toggle the death leaderboard."));
             return true;
         }
-        if (!enabled) {
-            player.sendMessage(text(plugin, player, "§cDie Todesliste ist vom Admin deaktiviert.", "§cThe death leaderboard is disabled by an admin."));
-            return true;
-        }
         if (args.length > 1 || (args.length == 1
                 && !args[0].equalsIgnoreCase("an") && !args[0].equalsIgnoreCase("aus")
                 && !args[0].equalsIgnoreCase("on") && !args[0].equalsIgnoreCase("off"))) {
             player.sendMessage(text(plugin, player, "§cVerwendung: /" + label + " [an|aus]", "§cUsage: /" + label + " [on|off]"));
             return true;
         }
-        UUID id = player.getUniqueId();
-        boolean visible = args.length == 0 ? hidden.contains(id) : args[0].equalsIgnoreCase("an") || args[0].equalsIgnoreCase("on");
-        if (visible == !hidden.contains(id)) {
-            player.sendMessage(visible ? text(plugin, player, "§eDie Todesliste ist bereits eingeblendet.", "§eThe death leaderboard is already visible.")
-                    : text(plugin, player, "§eDie Todesliste ist bereits ausgeblendet.", "§eThe death leaderboard is already hidden."));
-            return true;
-        }
+        boolean visible = args.length == 0 ? !isVisible(player)
+                : args[0].equalsIgnoreCase("an") || args[0].equalsIgnoreCase("on");
         setVisible(player, visible);
-        player.sendMessage(visible ? text(plugin, player, "§aTodesliste eingeblendet.", "§aDeath leaderboard shown.")
-                : text(plugin, player, "§aTodesliste ausgeblendet.", "§aDeath leaderboard hidden."));
         return true;
     }
 
@@ -200,201 +154,220 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
     }
 
     public boolean isVisible(Player player) {
-        return !hidden.contains(player.getUniqueId());
+        Sidebar sidebar = sidebars.get(player.getUniqueId());
+        return enabled && !hidden.contains(player.getUniqueId()) && sidebar != null
+                && player.getScoreboard() == sidebar.board;
     }
 
     public void setVisible(Player player, boolean visible) {
+        if (visible && !enabled) {
+            player.sendMessage(text(plugin, player, "§cDie Todesliste ist vom Admin deaktiviert.", "§cThe death leaderboard is disabled by an admin."));
+            return;
+        }
         remember(player);
         if (visible) {
             hidden.remove(player.getUniqueId());
+            showSidebar(player, true);
         } else {
             hidden.add(player.getUniqueId());
+            Sidebar sidebar = sidebars.get(player.getUniqueId());
+            if (sidebar != null) {
+                animate(player, sidebar, false);
+            }
         }
         save();
-        if (enabled) {
-            animate(player, visible);
-        }
     }
 
     public void refreshPlayer(Player player) {
-        cancelAnimation(player.getUniqueId());
-        restore(player);
-        show(player);
-    }
-
-    private void show(Player player) {
-        if (!enabled || hidden.contains(player.getUniqueId())) {
-            return;
-        }
-        previousBoards.putIfAbsent(player.getUniqueId(), player.getScoreboard());
-        player.setScoreboard(boards.get(language(plugin, player)));
-    }
-
-    private void cancelAnimation(UUID id) {
-        BukkitTask task = animations.remove(id);
-        if (task != null) {
-            task.cancel();
+        if (enabled && !hidden.contains(player.getUniqueId())) {
+            showSidebar(player, false);
+        } else {
+            removeSidebar(player);
         }
     }
 
-    private void restore(Player player) {
-        UUID id = player.getUniqueId();
-        Scoreboard animated = animationBoards.remove(id);
-        Scoreboard previous = previousBoards.remove(id);
-        if (previous != null && (boards.containsValue(player.getScoreboard()) || player.getScoreboard() == animated)) {
-            player.setScoreboard(previous);
-        }
-    }
-
-    private void animate(Player player, boolean visible) {
-        UUID id = player.getUniqueId();
-        cancelAnimation(id);
-        previousBoards.putIfAbsent(id, player.getScoreboard());
-        String selectedLanguage = language(plugin, player);
-        Scoreboard scoreboard = boards.get(selectedLanguage);
-        Objective objective = scoreboard.getObjective("vision_deaths");
-        Scoreboard animated = plugin.getServer().getScoreboardManager().getNewScoreboard();
-        Objective animatedObjective = animated.registerNewObjective("vision_deaths", "dummy", title(selectedLanguage));
-        hideScoreNumbers(animatedObjective);
-        List<Team> animatedRows = new ArrayList<>();
-        int width = ChatColor.stripColor(title(selectedLanguage)).length();
-        for (int i = 0; i < ROW_COUNT; i++) {
-            Team team = animated.registerNewTeam("death_row_" + i);
-            team.addEntry(entries.get(i));
-            animatedRows.add(team);
-            width = Math.max(width, ChatColor.stripColor(scoreboard.getTeam("death_row_" + i).getPrefix()).length());
-        }
-        final int fullWidth = Math.max(1, width);
-        animationBoards.put(id, animated);
-        player.setScoreboard(animated);
-        BukkitTask task = new BukkitRunnable() {
-            private int frame;
-
-            @Override
-            public void run() {
-                if (!player.isOnline() || player.getScoreboard() != animated) {
-                    animations.remove(id);
-                    animationBoards.remove(id);
-                    previousBoards.remove(id);
-                    cancel();
-                    return;
-                }
-                int shownWidth = visible ? frame : fullWidth - frame;
-                animatedObjective.setDisplayName(clip(title(selectedLanguage), shownWidth));
-                for (int i = 0; i < ROW_COUNT; i++) {
-                    String entry = entries.get(i);
-                    animated.resetScores(entry);
-                    if (shownWidth > 0 && objective.getScore(entry).isScoreSet()) {
-                        animatedRows.get(i).setPrefix(clip(scoreboard.getTeam("death_row_" + i).getPrefix(), shownWidth));
-                        animatedObjective.getScore(entry).setScore(objective.getScore(entry).getScore());
-                    }
-                }
-                if (shownWidth > 0) {
-                    animatedObjective.setDisplaySlot(DisplaySlot.SIDEBAR);
+    private void refresh() {
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            Sidebar sidebar = sidebars.get(player.getUniqueId());
+            if (sidebar != null) {
+                if (player.getScoreboard() != sidebar.board) {
+                    removeSidebar(player);
                 } else {
-                    animated.clearSlot(DisplaySlot.SIDEBAR);
-                }
-                if (frame++ >= fullWidth) {
-                    animations.remove(id);
-                    if (visible) {
-                        player.setScoreboard(scoreboard);
-                        animationBoards.remove(id);
-                    } else {
-                        restore(player);
-                    }
-                    cancel();
+                    updateContent(player, sidebar);
+                    renderFrame(sidebar);
                 }
             }
-        }.runTaskTimer(plugin, 0L, 2L);
-        animations.put(id, task);
+        }
+    }
+
+    private void showSidebar(Player player, boolean animated) {
+        Sidebar sidebar = sidebars.get(player.getUniqueId());
+        if (sidebar != null && player.getScoreboard() != sidebar.board) {
+            removeSidebar(player);
+            sidebar = null;
+        }
+        if (sidebar == null) {
+            Scoreboard board = plugin.getServer().getScoreboardManager().getNewScoreboard();
+            Objective objective = board.registerNewObjective("vision_deaths", "dummy", " ");
+            hideScoreNumbers(objective);
+            sidebar = new Sidebar(board, player.getScoreboard(), objective);
+            for (int i = 0; i < TOP_SIZE + 6; i++) {
+                String entry = "§" + Integer.toHexString(i) + "§r";
+                Team team = board.registerNewTeam("vision_line_" + i);
+                team.addEntry(entry);
+                sidebar.lines.add(team);
+                objective.getScore(entry).setScore(TOP_SIZE + 6 - i);
+            }
+            sidebar.progress = animated ? 0 : ANIMATION_STEPS;
+            updateContent(player, sidebar);
+            renderFrame(sidebar);
+            objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+            sidebars.put(player.getUniqueId(), sidebar);
+            player.setScoreboard(board);
+        } else {
+            updateContent(player, sidebar);
+        }
+        if (animated) {
+            animate(player, sidebar, true);
+        } else {
+            cancelAnimation(sidebar);
+            sidebar.progress = ANIMATION_STEPS;
+            renderFrame(sidebar);
+        }
     }
 
     private void hideScoreNumbers(Objective objective) {
         try {
-            Class<?> formatClass = Class.forName("io.papermc.paper.scoreboard.numbers.NumberFormat");
-            Object blankFormat = formatClass.getMethod("blank").invoke(null);
-            Objective.class.getMethod("numberFormat", formatClass).invoke(objective, blankFormat);
-            return;
-        } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-        }
-
-        try {
-            // Spigot has no public number-format API; use the typed vanilla setter, never overwrite fields.
-            Method getHandle = objective.getClass().getDeclaredMethod("getHandle");
-            getHandle.setAccessible(true);
-            Object handle = getHandle.invoke(objective);
-            Class<?> formatClass = Class.forName("net.minecraft.network.chat.numbers.NumberFormat");
-            Class<?> blankClass = Class.forName("net.minecraft.network.chat.numbers.BlankFormat");
-            Object blankFormat = blankClass.getConstructor().newInstance();
-            Method setter;
-            try {
-                setter = handle.getClass().getMethod("setNumberFormat", formatClass);
-            } catch (NoSuchMethodException exception) {
-                setter = handle.getClass().getMethod("b", formatClass);
-            }
-            setter.invoke(handle, blankFormat);
-        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
-            if (!numberFormatWarningLogged) {
-                plugin.getLogger().warning(
-                        "Das leere Scoreboard-Zahlenformat wird von dieser Serverversion nicht unterstützt: " + exception);
-                numberFormatWarningLogged = true;
+            ClassLoader loader = Objective.class.getClassLoader();
+            Class<?> formatType = Class.forName("io.papermc.paper.scoreboard.numbers.NumberFormat", true, loader);
+            Class<?> componentType = Class.forName("net.kyori.adventure.text.Component", true, loader);
+            Class<?> componentLikeType = Class.forName("net.kyori.adventure.text.ComponentLike", true, loader);
+            Object empty = componentType.getMethod("empty").invoke(null);
+            Object fixed = formatType.getMethod("fixed", componentLikeType).invoke(null, empty);
+            // Use only Paper's public fixed-component format; never BlankFormat or NMS fields.
+            Objective.class.getMethod("numberFormat", formatType).invoke(objective, fixed);
+        } catch (ReflectiveOperationException | LinkageError exception) {
+            if (!formatWarningLogged) {
+                plugin.getLogger().warning("Dieser Server unterstützt das Ausblenden der Sidebar-Zahlen über das öffentliche Fixed-Format nicht. Standardzahlen bleiben sichtbar.");
+                formatWarningLogged = true;
             }
         }
     }
 
-    private String clip(String text, int width) {
-        if (width <= 0) {
-            return ChatColor.RESET.toString();
-        }
-        int end = 0;
-        int characters = 0;
-        while (end < text.length() && characters < width) {
-            if (text.charAt(end) == ChatColor.COLOR_CHAR && end + 1 < text.length()) {
-                end += 2;
-            } else {
-                end++;
-                characters++;
-            }
-        }
-        return text.substring(0, end) + ChatColor.RESET;
-    }
-
-    private String title(String language) {
-        return "§c§l☠ §f§l" + (language.equals("en") ? "DEATH LEADERBOARD" : "TODESLISTE");
-    }
-
-    private void refresh() {
+    private void updateContent(Player player, Sidebar sidebar) {
         List<UUID> players = new ArrayList<>(names.keySet());
         players.sort(Comparator.<UUID>comparingInt(id -> deaths.getOrDefault(id, 0))
                 .reversed()
                 .thenComparing(id -> names.get(id), String.CASE_INSENSITIVE_ORDER)
                 .thenComparing(UUID::toString));
 
-        long total = deaths.values().stream().mapToLong(Integer::longValue).sum();
-        for (Map.Entry<String, Scoreboard> boardEntry : boards.entrySet()) {
-            Scoreboard board = boardEntry.getValue();
-            boolean english = boardEntry.getKey().equals("en");
-            setLine(board, 0, "§8§m────────────────────────");
-            setLine(board, 1, english ? "§7The top §f5 §7at a glance" : "§7Die Top §f5 §7im Überblick");
-            setLine(board, 2, " ");
-            String[] rankColors = {"§6§l", "§f§l", "§c§l", "§7", "§7"};
-            for (int i = 0; i < TOP_SIZE; i++) {
-                if (i < players.size()) {
-                    UUID id = players.get(i);
-                    setLine(board, i + 3, rankColors[i] + (i + 1) + ". §f" + names.get(id)
-                            + " §8» §c" + deaths.getOrDefault(id, 0) + " §4☠");
-                } else {
-                    setLine(board, i + 3, "§8" + (i + 1) + ". §7—");
-                }
+        sidebar.title = text(plugin, player, "§c§lTodesliste", "§c§lDeath leaderboard");
+        sidebar.content.clear();
+        sidebar.content.add("§8§m------------------------");
+        sidebar.content.add("§7Top 5");
+        for (int i = 0; i < TOP_SIZE; i++) {
+            if (i < players.size()) {
+                UUID id = players.get(i);
+                sidebar.content.add("§e" + (i + 1) + ". §f" + names.get(id) + " §8» §c" + deaths.getOrDefault(id, 0));
+            } else {
+                sidebar.content.add("§8" + (i + 1) + ". —");
             }
-            setLine(board, 8, "§8§m────────────────────────");
-            setLine(board, 9, (english ? "§7Total deaths: §c" : "§7Tode insgesamt: §c") + total);
+        }
+        sidebar.content.add("§8§m------------------------");
+        sidebar.content.add(text(plugin, player, "§7Deine Tode: §c", "§7Your deaths: §c") + deaths.getOrDefault(player.getUniqueId(), 0));
+        long total = deaths.values().stream().mapToLong(Integer::longValue).sum();
+        sidebar.content.add(text(plugin, player, "§7Insgesamt: §c", "§7Total: §c") + total);
+        sidebar.content.add("§8/todesliste");
+    }
+
+    private void renderFrame(Sidebar sidebar) {
+        sidebar.objective.setDisplayName(reveal(sidebar.title, sidebar.progress));
+        for (int i = 0; i < sidebar.lines.size(); i++) {
+            sidebar.lines.get(i).setPrefix(reveal(sidebar.content.get(i), sidebar.progress));
         }
     }
 
-    private void setLine(Scoreboard board, int index, String value) {
-        board.getTeam("death_row_" + index).setPrefix(value);
-        board.getObjective("vision_deaths").getScore(entries.get(index)).setScore(ROW_COUNT - index);
+    private String reveal(String value, int progress) {
+        if (progress <= 0) {
+            return " ";
+        }
+        if (progress >= ANIMATION_STEPS) {
+            return value;
+        }
+        int limit = (ChatColor.stripColor(value).length() * progress + ANIMATION_STEPS - 1) / ANIMATION_STEPS;
+        StringBuilder result = new StringBuilder();
+        int visible = 0;
+        for (int i = 0; i < value.length() && visible < limit; i++) {
+            char character = value.charAt(i);
+            result.append(character);
+            if (character == '§' && i + 1 < value.length()) {
+                result.append(value.charAt(++i));
+            } else {
+                visible++;
+            }
+        }
+        return result.append("§r").toString();
+    }
+
+    private void animate(Player player, Sidebar sidebar, boolean showing) {
+        cancelAnimation(sidebar);
+        if (showing && sidebar.progress == ANIMATION_STEPS) {
+            renderFrame(sidebar);
+            return;
+        }
+        if (!showing && sidebar.progress == 0) {
+            removeSidebar(player);
+            return;
+        }
+        sidebar.animation = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            if (!player.isOnline() || player.getScoreboard() != sidebar.board) {
+                removeSidebar(player);
+                return;
+            }
+            sidebar.progress += showing ? 1 : -1;
+            renderFrame(sidebar);
+            if (sidebar.progress == 0) {
+                removeSidebar(player);
+            } else if (sidebar.progress == ANIMATION_STEPS) {
+                cancelAnimation(sidebar);
+            }
+        }, 0L, 2L);
+    }
+
+    private void cancelAnimation(Sidebar sidebar) {
+        if (sidebar.animation != null) {
+            sidebar.animation.cancel();
+            sidebar.animation = null;
+        }
+    }
+
+    private void removeSidebar(Player player) {
+        Sidebar sidebar = sidebars.remove(player.getUniqueId());
+        if (sidebar == null) {
+            return;
+        }
+        cancelAnimation(sidebar);
+        if (player.getScoreboard() == sidebar.board) {
+            player.setScoreboard(sidebar.previous);
+        }
+    }
+
+    @Getter
+    private static final class Sidebar {
+        private final Scoreboard board;
+        private final Scoreboard previous;
+        private final Objective objective;
+        private final List<Team> lines = new ArrayList<>();
+        private final List<String> content = new ArrayList<>();
+        private String title;
+        private int progress;
+        private BukkitTask animation;
+
+        private Sidebar(Scoreboard board, Scoreboard previous, Objective objective) {
+            this.board = board;
+            this.previous = previous;
+            this.objective = objective;
+        }
     }
 
     private void load() {
@@ -412,7 +385,7 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
                 UUID id = UUID.fromString(key);
                 names.put(id, entry.getString("name", key));
                 deaths.put(id, Math.max(0, entry.getInt("deaths", 0)));
-                if (entry.getBoolean("hidden", false)) {
+                if (entry.getBoolean("sidebar-hidden", false)) {
                     hidden.add(id);
                 }
             } catch (IllegalArgumentException exception) {
@@ -427,7 +400,7 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
             String path = "players." + entry.getKey();
             data.set(path + ".name", entry.getValue());
             data.set(path + ".deaths", deaths.getOrDefault(entry.getKey(), 0));
-            data.set(path + ".hidden", hidden.contains(entry.getKey()));
+            data.set(path + ".sidebar-hidden", hidden.contains(entry.getKey()));
         }
         try {
             data.save(dataFile);
