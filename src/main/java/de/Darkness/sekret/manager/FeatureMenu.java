@@ -13,6 +13,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,35 +60,76 @@ public final class FeatureMenu implements Listener {
     }
 
     private void render(Player player, Inventory inventory) {
+        ItemStack background = item("GRAY_STAINED_GLASS_PANE", " ", List.of());
+        ItemStack border = item("BLUE_STAINED_GLASS_PANE", " ", List.of());
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            inventory.setItem(slot, slot < 9 || (slot >= 27 && slot < 36) ? border : background);
+        }
+        int active = 0;
         for (Feature feature : Feature.values()) {
             boolean enabled = plugin.getConfig().getBoolean(feature.getPath(), true);
+            if (enabled) {
+                active++;
+            }
             List<String> lore = new ArrayList<>();
             lore.add("§7" + description(player, feature));
             lore.add("");
-            lore.add("§7Status: " + (enabled ? text(plugin, player, "§aAN", "§aON") : text(plugin, player, "§cAUS", "§cOFF")));
+            lore.add("§7Status: " + (enabled ? text(plugin, player, "§a● Aktiviert", "§a● Enabled") : text(plugin, player, "§c● Deaktiviert", "§c● Disabled")));
             if (feature.getPath().startsWith("disease.") && !feature.getPath().equals("disease.enabled")
                     && !plugin.getConfig().getBoolean("disease.enabled", true)) {
                 lore.add(text(plugin, player, "§6Krankheitssystem ist momentan aus.", "§6The disease system is currently disabled."));
             }
-            lore.add(enabled ? text(plugin, player, "§eKlicken zum Ausschalten", "§eClick to disable")
-                    : text(plugin, player, "§eKlicken zum Einschalten", "§eClick to enable"));
-            lore.add(text(plugin, player, "§bRechtsklick: alle Einstellungen", "§bRight-click: all settings"));
+            lore.add("");
+            lore.add(enabled ? text(plugin, player, "§eLinksklick §8» §7Ausschalten", "§eLeft-click §8» §7Disable")
+                    : text(plugin, player, "§eLinksklick §8» §7Einschalten", "§eLeft-click §8» §7Enable"));
+            lore.add(text(plugin, player, "§bRechtsklick §8» §7Einstellungen", "§bRight-click §8» §7Settings"));
             inventory.setItem(feature.getSlot(), item(feature.getIcon(),
-                    (enabled ? "§a" : "§c") + name(player, feature), lore));
+                    (enabled ? "§a§l" : "§c§l") + name(player, feature), lore));
         }
-        inventory.setItem(36, item("BOOK", text(plugin, player, "§6Vision-Verwaltung", "§6Vision Administration"), List.of(
+        inventory.setItem(4, item("NETHER_STAR", text(plugin, player, "§b§lVision §8| §fVerwaltung", "§b§lVision §8| §fAdministration"), List.of(
+                text(plugin, player, "§7Alle Serverfunktionen auf einen Blick.", "§7All server features at a glance."),
+                "",
+                text(plugin, player, "§7Eingeschaltet: §a", "§7Enabled: §a") + active + " §8/ §f" + Feature.values().length,
+                text(plugin, player, "§7Angemeldet als: §f", "§7Signed in as: §f") + player.getName())));
+        inventory.setItem(31, item("LIME_DYE", text(plugin, player, "§fBedienung & Status", "§fControls & status"), List.of(
+                text(plugin, player, "§aGrün §8= §7eingeschaltet", "§aGreen §8= §7enabled"),
+                text(plugin, player, "§cRot §8= §7ausgeschaltet", "§cRed §8= §7disabled"),
+                "",
+                text(plugin, player, "§eLinksklick §8» §7Funktion umschalten", "§eLeft-click §8» §7Toggle feature"),
+                text(plugin, player, "§bRechtsklick §8» §7Werte bearbeiten", "§bRight-click §8» §7Edit values"))));
+        inventory.setItem(36, item("BOOK", text(plugin, player, "§6§lHilfe", "§6§lHelp"), List.of(
                 text(plugin, player, "§7Änderungen gelten sofort für alle Spieler.", "§7Changes apply immediately to all players."),
                 text(plugin, player, "§7Einstellungen bleiben nach Neustarts erhalten.", "§7Settings persist after restarts."),
                 text(plugin, player, "§7Nur Admins können dieses Menü bedienen.", "§7Only admins can use this menu."))));
-        inventory.setItem(38, item("COMPARATOR", text(plugin, player, "§bAlle Einstellungen", "§bAll settings"), List.of(
-                text(plugin, player, "§7Werte, Texte, Listen und Untermenüs bearbeiten.", "§7Edit values, texts, lists and submenus."),
+        inventory.setItem(38, item("COMPARATOR", text(plugin, player, "§b§lAlle Einstellungen", "§b§lAll settings"), List.of(
+                text(plugin, player, "§7Die vollständige Vision-Konfiguration bearbeiten.", "§7Edit the complete Vision configuration."),
+                text(plugin, player, "§7Schalter, Zahlen, Texte, Listen und Spawnposition.", "§7Toggles, numbers, texts, lists and spawn location."),
+                "",
                 text(plugin, player, "§eKlicken zum Öffnen", "§eClick to open"))));
-        inventory.setItem(40, item("BARRIER", text(plugin, player, "§cSchließen", "§cClose"), List.of(text(plugin, player, "§7Menü schließen.", "§7Close menu."))));
-        inventory.setItem(42, item("PLAYER_HEAD", text(plugin, player, "§bMein Menü", "§bMy menu"), List.of(
-                text(plugin, player, "§7Eigene Sprache und Todesanzeige einstellen.", "§7Set your own language and death display."))));
-        inventory.setItem(44, item("PAPER", text(plugin, player, "§bStandardsprache: ", "§bDefault language: ")
+        inventory.setItem(37, item("WRITABLE_BOOK", text(plugin, player, "§e§lNachrichten", "§e§lMessages"), List.of(
+                text(plugin, player, "§7Todesnachrichten und Anleintext bearbeiten.", "§7Edit death messages and leash text."),
+                text(plugin, player, "§eKlicken zum Öffnen", "§eClick to open"))));
+        inventory.setItem(39, item("BOOK", text(plugin, player, "§e§lÜbersetzungen", "§e§lTranslations"), List.of(
+                text(plugin, player, "§7Englische Nachrichten und Warntexte bearbeiten.", "§7Edit English messages and warning texts."),
+                text(plugin, player, "§eKlicken zum Öffnen", "§eClick to open"))));
+        inventory.setItem(43, item("POTION", text(plugin, player, "§b§lDurstanzeige", "§b§lThirst display"), List.of(
+                text(plugin, player, "§7Die verwendete ItemsAdder-HUD-ID einstellen.", "§7Configure the ItemsAdder HUD ID in use."),
+                text(plugin, player, "§eKlicken zum Öffnen", "§eClick to open"))));
+        inventory.setItem(40, item("BARRIER", text(plugin, player, "§c§lSchließen", "§c§lClose"), List.of(text(plugin, player, "§7Menü schließen.", "§7Close menu."))));
+        ItemStack playerHead = item("PLAYER_HEAD", text(plugin, player, "§b§lMein Menü", "§b§lMy menu"), List.of(
+                "§f" + player.getName(),
+                text(plugin, player, "§7Eigene Sprache und Todesanzeige einstellen.", "§7Set your own language and death display."),
+                "",
+                text(plugin, player, "§eKlicken zum Öffnen", "§eClick to open")));
+        if (playerHead.getItemMeta() instanceof SkullMeta skullMeta) {
+            skullMeta.setOwningPlayer(player);
+            playerHead.setItemMeta(skullMeta);
+        }
+        inventory.setItem(42, playerHead);
+        inventory.setItem(44, item("PAPER", text(plugin, player, "§b§lStandardsprache: ", "§b§lDefault language: ")
                 + plugin.getConfig().getString("language", "de"), List.of(
                 text(plugin, player, "§7Für Spieler ohne persönliche Sprachauswahl.", "§7For players without a personal language preference."),
+                "",
                 text(plugin, player, "§eKlicken zum Umschalten", "§eClick to toggle"))));
     }
 
@@ -159,10 +201,17 @@ public final class FeatureMenu implements Listener {
         if (event.getClickedInventory() != top || (!event.isLeftClick() && !event.isRightClick())) {
             return;
         }
-        if (event.getRawSlot() == 38) {
+        String settingsSection = switch (event.getRawSlot()) {
+            case 37 -> "messages";
+            case 38 -> "";
+            case 39 -> "translations";
+            case 43 -> "thirst.itemsadder";
+            default -> null;
+        };
+        if (settingsSection != null) {
             plugin.getServer().getScheduler().runTask(plugin, () -> {
-                if (player.isOnline() && player.getOpenInventory().getTopInventory() == top) {
-                    plugin.openSettingsMenu(player, "");
+                if (player.isOnline() && player.hasPermission("vision.admin") && player.getOpenInventory().getTopInventory() == top) {
+                    plugin.openSettingsMenu(player, settingsSection);
                 }
             });
             return;

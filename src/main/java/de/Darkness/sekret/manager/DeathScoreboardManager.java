@@ -25,6 +25,7 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -313,10 +314,29 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
             Class<?> formatClass = Class.forName("io.papermc.paper.scoreboard.numbers.NumberFormat");
             Object blankFormat = formatClass.getMethod("blank").invoke(null);
             Objective.class.getMethod("numberFormat", formatClass).invoke(objective, blankFormat);
-        } catch (ReflectiveOperationException | RuntimeException exception) {
+            return;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
+        }
+
+        try {
+            // Spigot has no public number-format API; use the typed vanilla setter, never overwrite fields.
+            Method getHandle = objective.getClass().getDeclaredMethod("getHandle");
+            getHandle.setAccessible(true);
+            Object handle = getHandle.invoke(objective);
+            Class<?> formatClass = Class.forName("net.minecraft.network.chat.numbers.NumberFormat");
+            Class<?> blankClass = Class.forName("net.minecraft.network.chat.numbers.BlankFormat");
+            Object blankFormat = blankClass.getConstructor().newInstance();
+            Method setter;
+            try {
+                setter = handle.getClass().getMethod("setNumberFormat", formatClass);
+            } catch (NoSuchMethodException exception) {
+                setter = handle.getClass().getMethod("b", formatClass);
+            }
+            setter.invoke(handle, blankFormat);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
             if (!numberFormatWarningLogged) {
                 plugin.getLogger().warning(
-                        "Die öffentliche Paper-API zum Ausblenden der Scoreboard-Zahlen ist nicht verfügbar. Die Todesliste verwendet die normale Zahlenspalte.");
+                        "Das leere Scoreboard-Zahlenformat wird von dieser Serverversion nicht unterstützt: " + exception);
                 numberFormatWarningLogged = true;
             }
         }

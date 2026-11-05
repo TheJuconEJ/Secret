@@ -1,5 +1,6 @@
 package de.Darkness.sekret.manager;
 
+import com.cryptomorin.xseries.XPotion;
 import de.Darkness.sekret.SekretPlugin;
 import de.Darkness.sekret.util.PluginMessages;
 import org.bukkit.Bukkit;
@@ -23,8 +24,6 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerToggleSprintEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
@@ -86,6 +85,11 @@ public final class DiseaseManager implements Listener {
             monitorTask.cancel();
         }
         saveData();
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (diseases.containsKey(player.getUniqueId())) {
+                removeDiseaseEffects(player);
+            }
+        }
         diseases.clear();
         diseaseDeaths.clear();
     }
@@ -111,6 +115,7 @@ public final class DiseaseManager implements Listener {
         diseases.put(player.getUniqueId(), new DiseaseData(1, 0L, 0L, 0L));
         player.sendMessage(text(plugin, player, "§eDu fühlst dich plötzlich krank...", "§eYou suddenly feel sick..."));
         applyEffects(player, 1);
+        showDiseaseStatus(player, 1);
         saveData();
         return true;
     }
@@ -166,14 +171,16 @@ public final class DiseaseManager implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         DiseaseData data = diseases.get(event.getPlayer().getUniqueId());
-        if (data != null) {
+        if (data != null && plugin.getConfig().getBoolean("disease.enabled", true)) {
             applyEffects(event.getPlayer(), data.stage());
+            showDiseaseStatus(event.getPlayer(), data.stage());
         }
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         if (diseases.containsKey(event.getPlayer().getUniqueId())) {
+            removeDiseaseEffects(event.getPlayer());
             saveData();
         }
     }
@@ -338,6 +345,7 @@ public final class DiseaseManager implements Listener {
                 data = new DiseaseData(data.stage() + 1, 0L, 0L, 0L);
                 player.sendMessage(text(plugin, player, "§cDeine Krankheit wird immer schlimmer!", "§cYour disease is getting worse!"));
                 applyEffects(player, data.stage());
+                showDiseaseStatus(player, data.stage());
             } else {
                 data = new DiseaseData(data.stage(), elapsed, data.damageElapsedSeconds(), data.warningElapsedSeconds());
             }
@@ -365,7 +373,8 @@ public final class DiseaseManager implements Listener {
         if (warningElapsed >= warningInterval) {
             String warning = PluginMessages.configured(plugin, player, "disease.stages.stage_" + data.stage() + ".warning");
             if (!warning.isBlank()) {
-                player.sendMessage(ChatColor.translateAlternateColorCodes('&', warning));
+                player.sendMessage(text(plugin, player, "§4[KRANK – Stufe ", "§4[SICK – Stage ")
+                        + data.stage() + "/4] §r" + ChatColor.translateAlternateColorCodes('&', warning));
             }
             PluginMessages.playEffect(section, player);
             warningElapsed = 0L;
@@ -378,29 +387,30 @@ public final class DiseaseManager implements Listener {
         if (!plugin.getConfig().getBoolean("disease.enabled", true)) {
             return;
         }
+        XPotion.matchXPotion("NAUSEA").map(potion -> potion.buildPotionEffect(240, 0)).ifPresent(player::addPotionEffect);
         ConfigurationSection section = stageSection(stage);
         if (section == null) {
             return;
         }
         for (String effectName : section.getStringList("effects")) {
-            PotionEffectType effectType = PotionEffectType.getByName(effectName.toUpperCase(Locale.ROOT));
-            if (effectType != null) {
-                player.addPotionEffect(new PotionEffect(effectType, 60, 0, true, false, true));
-            }
+            XPotion.matchXPotion(effectName).map(potion -> potion.buildPotionEffect(240, 0)).ifPresent(player::addPotionEffect);
         }
     }
 
+    private void showDiseaseStatus(Player player, int stage) {
+        player.sendTitle(text(plugin, player, "§4§lKRANK", "§4§lSICK"),
+                text(plugin, player, "§eKrankheitsstufe ", "§eDisease stage ") + stage + "/4", 10, 70, 20);
+    }
+
     private void removeDiseaseEffects(Player player) {
+        XPotion.matchXPotion("NAUSEA").map(potion -> potion.buildPotionEffect(1, 0).getType()).ifPresent(player::removePotionEffect);
         for (int stage = 1; stage <= 4; stage++) {
             ConfigurationSection section = stageSection(stage);
             if (section == null) {
                 continue;
             }
             for (String effectName : section.getStringList("effects")) {
-                PotionEffectType effectType = PotionEffectType.getByName(effectName.toUpperCase(Locale.ROOT));
-                if (effectType != null) {
-                    player.removePotionEffect(effectType);
-                }
+                XPotion.matchXPotion(effectName).map(potion -> potion.buildPotionEffect(1, 0).getType()).ifPresent(player::removePotionEffect);
             }
         }
     }

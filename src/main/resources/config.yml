@@ -138,6 +138,7 @@ disease:
       warning_interval_seconds: 25
       warning: "&6Deine Krankheit verschlechtert sich."
       effects:
+        - "NAUSEA"
         - "HUNGER"
         - "WEAKNESS"
         - "SLOWNESS"

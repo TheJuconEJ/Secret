@@ -35,13 +35,16 @@ import java.util.logging.Level;
 public final class SekretPlugin extends JavaPlugin {
 
     private LeashManager leashManager;
+    @Getter
     private DeathMechanicsManager deathMechanicsManager;
     private DiseaseManager diseaseManager;
     private SitManager sitManager;
     @Getter
     private DeathScoreboardManager deathScoreboardManager;
+    @Getter
     private ScheduledSoundManager scheduledSoundManager;
     private FeatureMenu featureMenu;
+    @Getter
     private ThirstManager thirstManager;
     private SettingsMenu settingsMenu;
     @Getter

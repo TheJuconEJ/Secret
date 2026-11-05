@@ -217,6 +217,27 @@ public final class DeathMechanicsManager implements Listener {
             return;
         }
 
+        trip(player, section, false);
+    }
+
+    public boolean testEffect(Player player, String effect) {
+        if (!canKill(player) || pendingTrips.contains(player.getUniqueId())) {
+            return false;
+        }
+        switch (effect) {
+            case "blow" -> kill(player, DeathReason.SAME_BLOCK);
+            case "excitement" -> kill(player, DeathReason.EXCITEMENT);
+            case "tripping" -> trip(player, plugin.getConfig().getConfigurationSection("tripping"), true);
+            default -> { return false; }
+        }
+        return true;
+    }
+
+    private void trip(Player player, ConfigurationSection section, boolean test) {
+        if (section == null) {
+            kill(player, DeathReason.TRIP);
+            return;
+        }
         if (!section.getBoolean("animation", true)) {
             kill(player, DeathReason.TRIP);
             return;
@@ -229,7 +250,7 @@ public final class DeathMechanicsManager implements Listener {
         long delay = Math.max(1L, section.getLong("animation_delay_ticks", 4L));
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             pendingTrips.remove(player.getUniqueId());
-            if (plugin.getConfig().getBoolean("tripping.enabled", true) && player.isOnline() && canKill(player)) {
+            if ((test || plugin.getConfig().getBoolean("tripping.enabled", true)) && canKill(player)) {
                 kill(player, DeathReason.TRIP);
             }
         }, delay);

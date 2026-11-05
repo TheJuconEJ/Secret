@@ -1,5 +1,6 @@
 package de.Darkness.sekret.manager;
 
+import com.cryptomorin.xseries.XAttribute;
 import com.cryptomorin.xseries.XMaterial;
 import de.Darkness.sekret.SekretPlugin;
 import dev.lone.itemsadder.api.Events.ItemsAdderLoadDataEvent;
@@ -7,12 +8,16 @@ import dev.lone.itemsadder.api.FontImages.PlayerHudsHolderWrapper;
 import dev.lone.itemsadder.api.FontImages.PlayerQuantityHudWrapper;
 import dev.lone.itemsadder.api.ItemsAdder;
 import org.bukkit.GameMode;
+import org.bukkit.NamespacedKey;
+import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -34,6 +39,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 
+import static de.Darkness.sekret.util.PluginMessages.text;
+
 public final class ThirstManager implements Listener {
 
     private static final int MAX_WATER = 20;
@@ -49,6 +56,7 @@ public final class ThirstManager implements Listener {
 
     private final SekretPlugin plugin;
     private final File dataFile;
+    private final NamespacedKey dehydrationKey;
     private final Map<UUID, Integer> water = new HashMap<>();
     private final Map<UUID, Integer> elapsed = new HashMap<>();
     private final Map<UUID, Integer> damageElapsed = new HashMap<>();
@@ -61,6 +69,7 @@ public final class ThirstManager implements Listener {
     public ThirstManager(SekretPlugin plugin) {
         this.plugin = plugin;
         this.dataFile = new File(plugin.getDataFolder(), "thirst-data.yml");
+        this.dehydrationKey = new NamespacedKey(plugin, "dehydration");
     }
 
     public void start() {
@@ -133,6 +142,30 @@ public final class ThirstManager implements Listener {
                 && (player.getGameMode() == GameMode.SURVIVAL || player.getGameMode() == GameMode.ADVENTURE);
     }
 
+    public boolean testDehydration(Player player) {
+        if (!active(player)) {
+            return false;
+        }
+        water.put(player.getUniqueId(), 0);
+        elapsed.remove(player.getUniqueId());
+        damageElapsed.remove(player.getUniqueId());
+        updateBar(player);
+        save();
+        return true;
+    }
+
+    public boolean refill(Player player) {
+        if (!active(player)) {
+            return false;
+        }
+        water.put(player.getUniqueId(), MAX_WATER);
+        elapsed.remove(player.getUniqueId());
+        damageElapsed.remove(player.getUniqueId());
+        updateBar(player);
+        save();
+        return true;
+    }
+
     private void tick() {
         int interval = Math.max(1, plugin.getConfig().getInt("thirst.drain_interval_seconds", 60));
         int multiplier = Math.max(1, plugin.getConfig().getInt("thirst.accelerated_drain_multiplier", 2));
@@ -180,6 +213,7 @@ public final class ThirstManager implements Listener {
             clearBar(player);
             return;
         }
+        updateDehydration(player, water.getOrDefault(player.getUniqueId(), MAX_WATER) == 0);
         if (!ItemsAdder.areItemsLoaded()) {
             return;
         }
@@ -202,6 +236,7 @@ public final class ThirstManager implements Listener {
     }
 
     private void clearBar(Player player) {
+        updateDehydration(player, false);
         if (displayedBars.remove(player.getUniqueId()) && ItemsAdder.areItemsLoaded()) {
             PlayerHudsHolderWrapper holder = new PlayerHudsHolderWrapper(player);
             PlayerQuantityHudWrapper hud = new PlayerQuantityHudWrapper(holder, hudId);
@@ -210,6 +245,26 @@ public final class ThirstManager implements Listener {
                 holder.sendUpdate();
             }
         }
+    }
+
+    private void updateDehydration(Player player, boolean dehydrated) {
+        XAttribute.of("movement_speed").ifPresent(attribute -> {
+            AttributeInstance instance = player.getAttribute(attribute.get());
+            if (instance == null) {
+                return;
+            }
+            List<AttributeModifier> modifiers = instance.getModifiers().stream()
+                    .filter(modifier -> modifier.getKey().equals(dehydrationKey)).toList();
+            if (dehydrated && modifiers.isEmpty()) {
+                instance.addModifier(new AttributeModifier(dehydrationKey, -0.35D, AttributeModifier.Operation.ADD_SCALAR));
+                player.sendTitle(text(plugin, player, "§c§lDU VERDURSTEST", "§c§lDEHYDRATED"),
+                        text(plugin, player, "§eTrinke Wasser!", "§eDrink water!"), 10, 60, 20);
+                player.sendMessage(text(plugin, player, "§cDein Wasser ist leer! Du bist langsamer und erleidest Durstschaden.",
+                        "§cYour water is empty! You move slower and take dehydration damage."));
+            } else if (!dehydrated) {
+                modifiers.forEach(instance::removeModifier);
+            }
+        });
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -263,6 +318,12 @@ public final class ThirstManager implements Listener {
     }
 
     @EventHandler
+    public void onDeath(PlayerDeathEvent event) {
+        damageElapsed.remove(event.getEntity().getUniqueId());
+        clearBar(event.getEntity());
+    }
+
+    @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         updateBar(event.getPlayer());
     }
@@ -287,6 +348,7 @@ public final class ThirstManager implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
+        updateDehydration(event.getPlayer(), false);
         damageElapsed.remove(event.getPlayer().getUniqueId());
         displayedBars.remove(event.getPlayer().getUniqueId());
         save();

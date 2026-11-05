@@ -88,6 +88,27 @@ public final class LeashManager implements Listener {
         return ownerId.equals(ownerByLeashed.get(targetId));
     }
 
+    public boolean testLeash(Player owner, Player target) {
+        if (!plugin.getConfig().getBoolean("leash.enabled", true) || owner.equals(target)
+                || owner.isDead() || target.isDead() || owner.getWorld() != target.getWorld()) {
+            return false;
+        }
+        UUID currentOwner = ownerByLeashed.get(target.getUniqueId());
+        if (currentOwner != null) {
+            if (!currentOwner.equals(owner.getUniqueId())) {
+                return false;
+            }
+            removeRelationship(target.getUniqueId());
+            return true;
+        }
+        double distance = Math.max(0.0D, plugin.getConfig().getDouble("leash.max_distance", 10.0D));
+        if (owner.getLocation().distanceSquared(target.getLocation()) > distance * distance) {
+            return false;
+        }
+        createRelationship(owner, target);
+        return true;
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onInteract(PlayerInteractEntityEvent event) {
         if (!plugin.getConfig().getBoolean("leash.enabled", true) || !(event.getRightClicked() instanceof Player target)) {

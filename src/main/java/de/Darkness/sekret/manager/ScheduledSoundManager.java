@@ -148,6 +148,14 @@ public final class ScheduledSoundManager implements VoicechatPlugin {
         beginPlayback();
     }
 
+    public synchronized boolean testPlayback() {
+        if (!plugin.getConfig().getBoolean("scheduled_sound.enabled", true) || serverApi == null || !soundFile.isFile()) {
+            return false;
+        }
+        beginPlayback();
+        return true;
+    }
+
     private synchronized void beginPlayback() {
         if (serverApi == null) {
             plugin.getLogger().warning("Musik übersprungen: Simple Voice Chat ist nicht bereit.");

@@ -8,6 +8,7 @@ import de.Darkness.sekret.SekretPlugin;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -134,8 +135,19 @@ public final class SettingsMenu implements Listener {
                 icon = "COMPASS";
                 lore.add("§7" + display(player, value));
                 lore.add(text(plugin, player, "§eKlicken: Spawn an deiner Position setzen", "§eClick: set spawn at your position"));
-            } else if (value instanceof ConfigurationSection) {
+                lore.add(text(plugin, player, "§bShift + Klicken: genaue Position eingeben", "§bShift + click: enter an exact location"));
+            } else if (value instanceof ConfigurationSection section) {
                 icon = "CHEST";
+                lore.add(text(plugin, player, "§7Enthaltene Einstellungen: §f", "§7Settings inside: §f") + entries(path).size());
+                int shown = 0;
+                for (String key : section.getKeys(false)) {
+                    if (shown++ >= 4) {
+                        lore.add("§8...");
+                        break;
+                    }
+                    lore.add("§7» " + label(player, path + "." + key));
+                }
+                lore.add("");
                 lore.add(text(plugin, player, "§eKlicken: Untermenü öffnen", "§eClick: open submenu"));
             } else {
                 icon = value instanceof Boolean state ? (state ? "LIME_DYE" : "RED_DYE")
@@ -165,6 +177,12 @@ public final class SettingsMenu implements Listener {
                 "§7" + (holder.getSection().isEmpty() ? text(plugin, player, "Alle Funktionen", "All features") : holder.getSection()),
                 text(plugin, player, "§7Seite ", "§7Page ") + (holder.getPage() + 1) + "/" + Math.max(1, (holder.getEntries().size() + PAGE_SIZE - 1) / PAGE_SIZE),
                 text(plugin, player, "§7Änderungen werden sofort gespeichert.", "§7Changes are saved immediately."))));
+        inventory.setItem(46, item("WRITABLE_BOOK", text(plugin, player, "§eBedienung", "§eControls"), List.of(
+                text(plugin, player, "§7Schalter: klicken zum Umschalten.", "§7Toggles: click to switch."),
+                text(plugin, player, "§7Zahlen: links eingeben, rechts erhöhen.", "§7Numbers: left to type, right to increase."),
+                text(plugin, player, "§7Shift + rechts verringert Zahlen.", "§7Shift + right decreases numbers."),
+                text(plugin, player, "§7Texte / Listen: im Chat eingeben.", "§7Texts / lists: enter in chat."),
+                text(plugin, player, "§7Farbcodes: &, Platzhalter beibehalten.", "§7Color codes: &, preserve placeholders."))));
         if ((holder.getPage() + 1) * PAGE_SIZE < holder.getEntries().size()) {
             inventory.setItem(50, item("ARROW", text(plugin, player, "§eNächste Seite", "§eNext page"), List.of()));
         }
@@ -249,13 +267,15 @@ public final class SettingsMenu implements Listener {
     private void edit(Player player, SettingsHolder holder, String path, boolean right, boolean shift) {
         Object value = plugin.getConfig().get(path);
         if (path.equals("spawn.location")) {
-            Location location = player.getLocation();
-            if (!player.getWorld().setSpawnLocation(location)) {
-                player.sendMessage(text(plugin, player, "§cDer Spawn konnte hier nicht gesetzt werden.", "§cThe spawn could not be set here."));
-                return;
+            if (shift) {
+                beginInput(player, holder, path, value);
+            } else {
+                try {
+                    save(player, path, player.getLocation());
+                } catch (IllegalArgumentException exception) {
+                    player.sendMessage("§c" + exception.getMessage());
+                }
             }
-            plugin.getConfig().set("spawn.locations", null);
-            save(player, path, location);
         } else if (value instanceof ConfigurationSection) {
             open(player, path, 0);
         } else if (value instanceof Boolean state) {
@@ -269,25 +289,33 @@ public final class SettingsMenu implements Listener {
                 player.sendMessage("§c" + exception.getMessage());
             }
         } else if (value instanceof String || value instanceof Number || value instanceof List<?>) {
-            Input input = new Input(path, holder.getSection(), holder.getPage());
-            player.closeInventory();
-            pending.put(player.getUniqueId(), input);
-            player.sendMessage("§e" + label(player, path) + " §7(" + path + ")");
-            player.sendMessage(text(plugin, player, "§7Aktuell: §f", "§7Current: §f") + display(player, value));
-            player.sendMessage(text(plugin, player, "§eNeuen Wert im Chat eingeben. 'abbrechen' beendet die Eingabe.",
-                    "§eEnter a new value in chat. Type 'cancel' to cancel."));
-            if (value instanceof List<?>) {
-                player.sendMessage(text(plugin, player, "§7Einträge mit ; trennen. [] leert die Liste.", "§7Separate entries with ;. [] clears the list."));
-            } else if (value instanceof String) {
-                player.sendMessage(text(plugin, player, "§7Farbcodes: &. Ein einzelnes - leert den Text.", "§7Color codes: &. A single - clears the text."));
-            }
-            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                if (pending.remove(player.getUniqueId(), input) && player.isOnline()) {
-                    player.sendMessage(text(plugin, player, "§eEingabe wegen Zeitüberschreitung abgebrochen.", "§eInput cancelled because it timed out."));
-                    open(player, input.getSection(), input.getPage());
-                }
-            }, 2400L);
+            beginInput(player, holder, path, value);
         }
+    }
+
+    private void beginInput(Player player, SettingsHolder holder, String path, Object value) {
+        Input input = new Input(path, holder.getSection(), holder.getPage());
+        player.closeInventory();
+        pending.put(player.getUniqueId(), input);
+        player.sendMessage("§e" + label(player, path) + " §7(" + path + ")");
+        player.sendMessage(text(plugin, player, "§7Aktuell: §f", "§7Current: §f") + display(player, value));
+        player.sendMessage(text(plugin, player, "§eNeuen Wert im Chat eingeben. 'abbrechen' beendet die Eingabe.",
+                "§eEnter a new value in chat. Type 'cancel' to cancel."));
+        if (path.equals("spawn.location")) {
+            player.sendMessage(text(plugin, player, "§7Format: Welt X Y Z [Yaw Pitch]", "§7Format: world X Y Z [yaw pitch]"));
+            Location location = player.getLocation();
+            player.sendMessage("§7" + player.getWorld().getName() + " " + location.getX() + " " + location.getY() + " " + location.getZ());
+        } else if (value instanceof List<?>) {
+            player.sendMessage(text(plugin, player, "§7Einträge mit ; trennen. [] leert die Liste.", "§7Separate entries with ;. [] clears the list."));
+        } else if (value instanceof String) {
+            player.sendMessage(text(plugin, player, "§7Farbcodes: &. Ein einzelnes - leert den Text.", "§7Color codes: &. A single - clears the text."));
+        }
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (pending.remove(player.getUniqueId(), input) && player.isOnline()) {
+                player.sendMessage(text(plugin, player, "§eEingabe wegen Zeitüberschreitung abgebrochen.", "§eInput cancelled because it timed out."));
+                open(player, input.getSection(), input.getPage());
+            }
+        }, 2400L);
     }
 
     private BigDecimal step(String path, Number number) {
@@ -295,6 +323,12 @@ public final class SettingsMenu implements Listener {
     }
 
     private void save(Player player, String path, Object value) {
+        if (path.equals("spawn.location") && value instanceof Location location) {
+            if (location.getWorld() == null || !location.getWorld().setSpawnLocation(location)) {
+                throw invalid(player, "Der Spawn konnte hier nicht gesetzt werden.", "The spawn could not be set here.");
+            }
+            plugin.getConfig().set("spawn.locations", null);
+        }
         plugin.setSetting(path, value);
         player.sendMessage("§a" + label(player, path) + text(plugin, player, " gespeichert: §f", " saved: §f") + display(player, value));
     }
@@ -331,6 +365,36 @@ public final class SettingsMenu implements Listener {
 
     private Object parse(Player player, String path, String input, Object current) {
         String trimmed = input.trim();
+        if (path.equals("spawn.location")) {
+            String[] parts = trimmed.split("\\s+");
+            if (parts.length != 4 && parts.length != 6) {
+                throw invalid(player, "Format: Welt X Y Z [Yaw Pitch]", "Format: world X Y Z [yaw pitch]");
+            }
+            World world = plugin.getServer().getWorld(parts[0]);
+            if (world == null) {
+                throw invalid(player, "Diese Welt ist nicht geladen.", "This world is not loaded.");
+            }
+            double[] coordinates = new double[parts.length - 1];
+            try {
+                for (int i = 1; i < parts.length; i++) {
+                    coordinates[i - 1] = Double.parseDouble(parts[i].replace(',', '.'));
+                    if (!Double.isFinite(coordinates[i - 1])) {
+                        throw new NumberFormatException();
+                    }
+                }
+            } catch (NumberFormatException exception) {
+                throw invalid(player, "Bitte gültige Koordinaten eingeben.", "Please enter valid coordinates.");
+            }
+            if (Math.abs(coordinates[0]) > 30000000 || Math.abs(coordinates[2]) > 30000000
+                    || coordinates[1] < world.getMinHeight() || coordinates[1] >= world.getMaxHeight()
+                    || (parts.length == 6 && (Math.abs(coordinates[3]) > 360 || Math.abs(coordinates[4]) > 90))) {
+                throw invalid(player, "Position außerhalb der Weltgrenzen oder ungültige Blickrichtung.",
+                        "Location outside world limits or invalid viewing direction.");
+            }
+            return new Location(world, coordinates[0], coordinates[1], coordinates[2],
+                    parts.length == 6 ? (float) coordinates[3] : player.getLocation().getYaw(),
+                    parts.length == 6 ? (float) coordinates[4] : player.getLocation().getPitch());
+        }
         if (current instanceof Number number) {
             double value;
             try {
@@ -360,9 +424,12 @@ public final class SettingsMenu implements Listener {
             List<String> values = trimmed.equals("[]") || trimmed.isEmpty() ? new ArrayList<>()
                     : new ArrayList<>(Arrays.asList(trimmed.split(";", -1)));
             for (int i = 0; i < values.size(); i++) {
-                String value = values.get(i).trim().toUpperCase(Locale.ROOT);
+                String value = values.get(i).trim();
                 if (value.isEmpty()) {
                     throw invalid(player, "Leere Listeneinträge sind nicht erlaubt.", "Empty list entries are not allowed.");
+                }
+                if (path.endsWith("biomes") || path.endsWith("effects")) {
+                    value = value.toUpperCase(Locale.ROOT);
                 }
                 if (path.endsWith("biomes")) {
                     try {
@@ -461,6 +528,8 @@ public final class SettingsMenu implements Listener {
             case "water_bottle_restore" -> "Auffüllen durch Wasserflaschen";
             case "milk_restore" -> "Auffüllen durch Milch";
             case "positive_potion_restore" -> "Auffüllen durch positive Tränke";
+            case "itemsadder" -> "ItemsAdder / Durstanzeige";
+            case "hud" -> "Durstanzeige: HUD-ID";
             case "max_uses" -> "Maximale Spawn-Nutzungen";
             case "window_seconds" -> "Spawn-Limit: Zeitraum (Sekunden)";
             case "allow_in_combat" -> "Spawn im Kampf erlauben";
