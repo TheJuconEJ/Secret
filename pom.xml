@@ -6,7 +6,7 @@
 
     <groupId>de.Darkness</groupId>
     <artifactId>vision</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.5</version>
     <name>Vision</name>
     <description>Chaotische Todesmechaniken für Spigot, Paper und Purpur</description>
 
@@ -40,6 +40,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>beer.devs</groupId>
+            <artifactId>itemsadder-api</artifactId>
+            <version>4.0.17</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>javazoom</groupId>
             <artifactId>jlayer</artifactId>
             <version>1.0.1</version>
@@ -49,6 +55,14 @@
 
     <build>
         <finalName>vision-${project.version}</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <excludes>
+                    <exclude>Vision-Wassertropfen.zip</exclude>
+                </excludes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

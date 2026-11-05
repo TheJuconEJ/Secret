@@ -25,7 +25,6 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -314,29 +313,10 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
             Class<?> formatClass = Class.forName("io.papermc.paper.scoreboard.numbers.NumberFormat");
             Object blankFormat = formatClass.getMethod("blank").invoke(null);
             Objective.class.getMethod("numberFormat", formatClass).invoke(objective, blankFormat);
-            return;
-        } catch (ReflectiveOperationException ignored) {
-            // Spigot exposes no number-format API; use the native objective below.
-        }
-        try {
-            Method getHandle = objective.getClass().getDeclaredMethod("getHandle");
-            getHandle.setAccessible(true);
-            Object handle = getHandle.invoke(objective);
-            Class<?> formatClass = Class.forName("net.minecraft.network.chat.numbers.NumberFormat");
-            Object blankFormat = Class.forName("net.minecraft.network.chat.numbers.BlankFormat")
-                    .getConstructor().newInstance();
-            for (Method method : handle.getClass().getMethods()) {
-                if (method.getReturnType() == void.class && method.getParameterCount() == 1
-                        && method.getParameterTypes()[0] == formatClass) {
-                    method.invoke(handle, blankFormat);
-                    return;
-                }
-            }
-            throw new NoSuchMethodException("Objective number-format setter");
         } catch (ReflectiveOperationException | RuntimeException exception) {
             if (!numberFormatWarningLogged) {
-                plugin.getLogger().log(Level.WARNING,
-                        "Die rechte Zahlenspalte der Todesliste konnte nicht ausgeblendet werden. Server und Client müssen Minecraft 1.20.3 oder neuer verwenden.", exception);
+                plugin.getLogger().warning(
+                        "Die öffentliche Paper-API zum Ausblenden der Scoreboard-Zahlen ist nicht verfügbar. Die Todesliste verwendet die normale Zahlenspalte.");
                 numberFormatWarningLogged = true;
             }
         }

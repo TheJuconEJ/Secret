@@ -80,7 +80,7 @@ public final class ScheduledSoundManager implements VoicechatPlugin {
         }
         try {
             zone = ZoneId.of(plugin.getConfig().getString("scheduled_sound.timezone", "Europe/Berlin"));
-            time = LocalTime.parse(plugin.getConfig().getString("scheduled_sound.time", "20:00"));
+            time = LocalTime.parse(plugin.getConfig().getString("scheduled_sound.time", "06:00"));
         } catch (DateTimeException exception) {
             plugin.getLogger().severe("Ungültige scheduled_sound.timezone oder time: " + exception.getMessage());
             return;

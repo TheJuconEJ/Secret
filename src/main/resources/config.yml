@@ -9,15 +9,8 @@ thirst:
   water_bottle_restore: 6
   milk_restore: 6
   positive_potion_restore: 4
-  resource_pack:
-    # Vision-Wassertropfen.zip liegt nach dem Start im Plugin-Ordner.
-    # Hier den öffentlichen Direktdownload dieser ZIP eintragen; leer deaktiviert das Laden.
-    url: "https://drive.google.com/uc?export=download&id=1nL7eHPn9LwBQZi8mgj8N1bOFZeyxmPPA"
-    sha1: ""
-    # Diese Zeichen müssen im Resourcepack in minecraft:default definiert sein.
-    full: "\uE000"
-    half: "\uE001"
-    empty: "\uE002"
+  itemsadder:
+    hud: "iasurvival:thirst_bar"
 
 translations:
   en:
@@ -48,7 +41,7 @@ spawn:
 scheduled_sound:
   enabled: true
   timezone: "Europe/Berlin"
-  time: "20:00"
+  time: "06:00"
 
 death_scoreboard:
   enabled: true
