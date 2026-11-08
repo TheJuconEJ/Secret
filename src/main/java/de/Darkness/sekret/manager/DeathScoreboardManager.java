@@ -241,7 +241,7 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
                 .thenComparing(id -> names.get(id), String.CASE_INSENSITIVE_ORDER)
                 .thenComparing(UUID::toString));
 
-        sidebar.title = text(plugin, player, "§c§lVISION §8┃ §fTodesliste", "§c§lVISION §8┃ §fDeaths");
+        sidebar.title = text(plugin, player, "§f§lTodesliste", "§f§lDeaths");
         sidebar.content.clear();
         sidebar.content.add(" ");
         sidebar.content.add(text(plugin, player, "§8▸ §7§lMEISTE TODE", "§8▸ §7§lMOST DEATHS"));
@@ -266,7 +266,7 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
         long total = deaths.values().stream().mapToLong(Integer::longValue).sum();
         sidebar.content.add(text(plugin, player, "§7Server gesamt §8┃ §f", "§7Server total §8┃ §f") + total);
         sidebar.content.add(" ");
-        sidebar.content.add(text(plugin, player, "§8/todesliste §7• §8an / aus", "§8/todesliste §7• §8on / off"));
+        sidebar.content.add(text(plugin, player, "§f/todesliste §7• §ean §f/ §eaus", "§f/todesliste §7• §eon §f/ §eoff"));
         sidebar.content.add("§8§m--------------------------");
     }
 
