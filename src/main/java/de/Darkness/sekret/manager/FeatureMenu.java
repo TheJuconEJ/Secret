@@ -115,6 +115,12 @@ public final class FeatureMenu implements Listener {
         inventory.setItem(43, item("POTION", text(plugin, player, "§b§lDurstanzeige", "§b§lThirst display"), List.of(
                 text(plugin, player, "§7Die verwendete ItemsAdder-HUD-ID einstellen.", "§7Configure the ItemsAdder HUD ID in use."),
                 text(plugin, player, "§eKlicken zum Öffnen", "§eClick to open"))));
+        inventory.setItem(41, item("CLOCK", text(plugin, player, "§c§lServer neustarten", "§c§lRestart server"), List.of(
+                text(plugin, player, "§7Ankündigung vor dem Neustart: §f", "§7Warning before restart: §f")
+                        + (plugin.getConfig().getBoolean("restart.enabled", true)
+                        ? Math.max(0, plugin.getConfig().getInt("restart.delay_seconds", 30)) : 0) + " s",
+                text(plugin, player, "§cShift + Linksklick: Neustart starten", "§cShift + left-click: start restart"),
+                text(plugin, player, "§bRechtsklick: Einstellungen", "§bRight-click: settings"))));
         inventory.setItem(40, item("BARRIER", text(plugin, player, "§c§lSchließen", "§c§lClose"), List.of(text(plugin, player, "§7Menü schließen.", "§7Close menu."))));
         ItemStack playerHead = item("PLAYER_HEAD", text(plugin, player, "§b§lMein Menü", "§b§lMy menu"), List.of(
                 "§f" + player.getName(),
@@ -199,6 +205,22 @@ public final class FeatureMenu implements Listener {
             return;
         }
         if (event.getClickedInventory() != top || (!event.isLeftClick() && !event.isRightClick())) {
+            return;
+        }
+        if (event.getRawSlot() == 41) {
+            boolean settings = event.isRightClick();
+            if (settings || event.isShiftClick()) {
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    if (player.isOnline() && player.hasPermission("vision.admin") && player.getOpenInventory().getTopInventory() == top) {
+                        if (settings) {
+                            plugin.openSettingsMenu(player, "restart");
+                        } else {
+                            player.closeInventory();
+                            plugin.getRestartManager().requestMenuRestart(player);
+                        }
+                    }
+                });
+            }
             return;
         }
         String settingsSection = switch (event.getRawSlot()) {

@@ -18,10 +18,13 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.potion.PotionEffect;
@@ -61,6 +64,7 @@ public final class ThirstManager implements Listener {
     private final Map<UUID, Integer> elapsed = new HashMap<>();
     private final Map<UUID, Integer> damageElapsed = new HashMap<>();
     private final Set<UUID> displayedBars = new HashSet<>();
+    private final Set<UUID> pendingBarRefreshes = new HashSet<>();
     private BukkitTask task;
     private int saveTicks;
     private String hudId = "iasurvival:thirst_bar";
@@ -101,9 +105,13 @@ public final class ThirstManager implements Listener {
         damageElapsed.clear();
         hudId = plugin.getConfig().getString("thirst.itemsadder.hud", "iasurvival:thirst_bar").trim();
         missingHudWarned = false;
-        if (enabled()) {
-            task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
-        }
+        task = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            if (enabled()) {
+                tick();
+            } else {
+                refresh();
+            }
+        }, 20L, 20L);
         refresh();
         save();
     }
@@ -327,15 +335,46 @@ public final class ThirstManager implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         updateBar(event.getPlayer());
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            if (event.getPlayer().isOnline()) {
-                updateBar(event.getPlayer());
-            }
-        }, 20L);
+        scheduleBarRefresh(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onGameModeChange(PlayerGameModeChangeEvent event) {
+        scheduleBarRefresh(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onTeleport(PlayerTeleportEvent event) {
+        scheduleBarRefresh(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onMove(PlayerMoveEvent event) {
+        if (!active(event.getPlayer()) && event.isCancelled()) {
+            scheduleBarRefresh(event.getPlayer());
+        }
+    }
+
+    private void scheduleBarRefresh(Player player) {
+        UUID id = player.getUniqueId();
+        if (!pendingBarRefreshes.add(id)) {
+            return;
+        }
+        for (long delay : new long[]{1L, 5L, 20L}) {
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                if (delay == 20L) {
+                    pendingBarRefreshes.remove(id);
+                }
+                if (player.isOnline()) {
+                    updateBar(player);
+                }
+            }, delay);
+        }
     }
 
     @EventHandler
     public void onRespawn(PlayerRespawnEvent event) {
+        scheduleBarRefresh(event.getPlayer());
         if (!enabled()) {
             return;
         }

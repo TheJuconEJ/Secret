@@ -9,6 +9,7 @@ import de.Darkness.sekret.manager.DiseaseManager;
 import de.Darkness.sekret.manager.FeatureMenu;
 import de.Darkness.sekret.manager.LeashManager;
 import de.Darkness.sekret.manager.PlayerMenu;
+import de.Darkness.sekret.manager.RestartManager;
 import de.Darkness.sekret.manager.ScheduledSoundManager;
 import de.Darkness.sekret.manager.SettingsMenu;
 import de.Darkness.sekret.manager.SitManager;
@@ -49,6 +50,8 @@ public final class SekretPlugin extends JavaPlugin {
     private SettingsMenu settingsMenu;
     @Getter
     private PlayerMenu playerMenu;
+    @Getter
+    private RestartManager restartManager;
 
     @Override
     public void onEnable() {
@@ -66,6 +69,7 @@ public final class SekretPlugin extends JavaPlugin {
         featureMenu = new FeatureMenu(this);
         thirstManager = new ThirstManager(this);
         settingsMenu = new SettingsMenu(this);
+        restartManager = new RestartManager(this);
 
         getServer().getPluginManager().registerEvents(leashManager, this);
         getServer().getPluginManager().registerEvents(deathMechanicsManager, this);
@@ -76,6 +80,7 @@ public final class SekretPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(thirstManager, this);
         getServer().getPluginManager().registerEvents(settingsMenu, this);
         getServer().getPluginManager().registerEvents(playerMenu, this);
+        getServer().getPluginManager().registerEvents(restartManager, this);
         leashManager.start();
 
         PluginCommand deathsCommand = getCommand("todesliste");
@@ -119,6 +124,9 @@ public final class SekretPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (restartManager != null) {
+            restartManager.shutdown();
+        }
         if (playerMenu != null) {
             playerMenu.shutdown();
         }
@@ -165,6 +173,7 @@ public final class SekretPlugin extends JavaPlugin {
         }
         deathScoreboardManager.reload();
         thirstManager.reload();
+        restartManager.reload();
         featureMenu.refresh();
         settingsMenu.refresh();
         playerMenu.refresh();
@@ -218,6 +227,7 @@ public final class SekretPlugin extends JavaPlugin {
             }
             case "death_scoreboard" -> deathScoreboardManager.reload();
             case "thirst" -> thirstManager.reload();
+            case "restart" -> restartManager.reload();
         }
         featureMenu.refresh();
         settingsMenu.refresh();

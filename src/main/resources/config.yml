@@ -1,5 +1,22 @@
 language: "de"
 
+restart:
+  enabled: true
+  delay_seconds: 30
+  menu_command: "restart"
+  commands:
+    - "restart"
+    - "spigot:restart"
+    - "bukkit:restart"
+    - "stop"
+    - "minecraft:stop"
+    - "bukkit:stop"
+  announce_seconds: [30, 20, 10, 5, 4, 3, 2, 1]
+  message: "&eDer Server wird in &c<seconds> Sekunden &eneugestartet!"
+  now_message: "&cDer Server wird jetzt neugestartet!"
+  stop_message: "&eDer Server wird in &c<seconds> Sekunden &eheruntergefahren!"
+  stop_now_message: "&cDer Server wird jetzt heruntergefahren!"
+
 thirst:
   enabled: true
   drain_interval_seconds: 60
@@ -14,6 +31,11 @@ thirst:
 
 translations:
   en:
+    restart:
+      message: "&eThe server will restart in &c<seconds> seconds&e!"
+      now_message: "&cThe server is restarting now!"
+      stop_message: "&eThe server will shut down in &c<seconds> seconds&e!"
+      stop_now_message: "&cThe server is shutting down now!"
     messages:
       same_block: "<player> died from a blowjob."
       excitement: "<player> died of excitement."

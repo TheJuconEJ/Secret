@@ -1,5 +1,5 @@
 name: Vision
-version: 1.0.15
+version: 1.0.17
 main: de.Darkness.sekret.SekretPlugin
 api-version: '1.21'
 author: Darkness
@@ -24,6 +24,9 @@ commands:
     usage: /todesliste [an|aus]
 
 permissions:
+  vision.restart:
+    description: Erlaubt das Starten des Neustart-Countdowns über das Adminmenü.
+    default: op
   vision.spawn.set:
     description: Erlaubt das Festlegen des Weltspawns mit /spawn set.
     default: op
