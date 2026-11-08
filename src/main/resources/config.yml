@@ -89,6 +89,12 @@ leash:
 
 sit:
   enabled: true
+  click_stairs: true
+  click_slabs: true
+  click_players: true
+  empty_hand_only: true
+  max_click_distance: 4.5
+  player_stack_limit: 0
 
 disease:
   enabled: true

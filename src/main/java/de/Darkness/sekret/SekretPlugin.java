@@ -94,6 +94,12 @@ public final class SekretPlugin extends JavaPlugin {
             command.setExecutor(executor);
             command.setTabCompleter(executor);
         }
+        PluginCommand updateCommand = getCommand("update");
+        if (updateCommand != null) {
+            SekretCommand executor = new SekretCommand(this);
+            updateCommand.setExecutor(executor);
+            updateCommand.setTabCompleter(executor);
+        }
         PluginCommand sitCommand = getCommand("sit");
         if (sitCommand != null) {
             sitCommand.setExecutor(new SitCommand(this));

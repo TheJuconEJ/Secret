@@ -45,7 +45,11 @@ public final class SitCommand implements CommandExecutor {
             }
         }
 
-        plugin.getSitManager().sit(owner, target);
+        if (!plugin.getSitManager().sit(owner, target)) {
+            owner.sendMessage(text(plugin, owner, "§cHinsetzen nicht möglich: Fester Boden und genügend Platz werden benötigt. Gesperrte Sitze kann nur der Besitzer lösen.",
+                    "§cCannot sit: solid ground and enough space are required. Only the owner can release a locked seat."));
+            return true;
+        }
         if (target.equals(owner)) {
             owner.sendMessage(text(plugin, owner, "§aDu sitzt jetzt.", "§aYou are now sitting."));
         } else {

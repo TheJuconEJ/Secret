@@ -264,10 +264,10 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
         sidebar.content.add(text(plugin, player, "§8▸ §7§lDEINE STATISTIK", "§8▸ §7§lYOUR STATS"));
         sidebar.content.add(text(plugin, player, "§7Deine Tode §8┃ §c", "§7Your deaths §8┃ §c") + deaths.getOrDefault(player.getUniqueId(), 0));
         long total = deaths.values().stream().mapToLong(Integer::longValue).sum();
-        sidebar.content.add(text(plugin, player, "§7Server gesamt §8┃ §f", "§7Server total §8┃ §f") + total);
+        sidebar.content.add(text(plugin, player, "§7Server gesamt §8┃ §c", "§7Server total §8┃ §c") + total);
         sidebar.content.add(" ");
         sidebar.content.add(text(plugin, player, "§f/todesliste §7• §ean §f/ §eaus", "§f/todesliste §7• §eon §f/ §eoff"));
-        sidebar.content.add("§8§m--------------------------");
+        sidebar.content.add("§f§m--------------------------");
     }
 
     private void renderFrame(Sidebar sidebar) {

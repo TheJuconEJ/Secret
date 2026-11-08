@@ -72,6 +72,10 @@ public final class PlayerMenu implements Listener {
                 text(plugin, player, "§eKlicken für Englisch", "§eClick for German"))));
         inventory.setItem(26, item("BARRIER", text(plugin, player, "§cSchließen", "§cClose"), List.of()));
         if (player.hasPermission("vision.admin")) {
+            inventory.setItem(13, item("ENDER_CHEST", text(plugin, player, "§a§lPlugin-Updates", "§a§lPlugin updates"), List.of(
+                    text(plugin, player, "§7Updates suchen, Quellen zuordnen und installieren.", "§7Find updates, assign sources and install."),
+                    "§e/update check | install | source",
+                    text(plugin, player, "§eKlicken zum Öffnen", "§eClick to open"))));
             inventory.setItem(22, item("COMPARATOR", text(plugin, player, "§6Admin-Verwaltung", "§6Admin settings"), List.of(
                     text(plugin, player, "§7Globale Funktionen und Einstellungen bearbeiten.", "§7Edit global features and settings."))));
         }
@@ -127,6 +131,11 @@ public final class PlayerMenu implements Listener {
                     plugin.getDeathScoreboardManager().setVisible(player,
                             !plugin.getDeathScoreboardManager().isVisible(player));
                     open(player);
+                }
+                case 13 -> {
+                    if (player.hasPermission("vision.admin")) {
+                        plugin.getPluginUpdateManager().open(player, 0);
+                    }
                 }
                 case 15 -> {
                     setLanguage(player, language(player).equals("de") ? "en" : "de");

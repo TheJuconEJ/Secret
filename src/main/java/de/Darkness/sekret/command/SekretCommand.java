@@ -49,6 +49,14 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("update")) {
+            if (!sender.hasPermission("vision.admin")) {
+                sender.sendMessage(text(plugin, sender, "§cDafür hast du keine Berechtigung.", "§cYou do not have permission."));
+                return true;
+            }
+            plugin.getPluginUpdateManager().handleCommand(sender, args);
+            return true;
+        }
         if ((args.length == 1 && args[0].equalsIgnoreCase("menu"))
                 || (args.length == 0 && !sender.hasPermission("vision.admin"))) {
             if (sender instanceof Player player) {
@@ -60,11 +68,6 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
         }
         if (!sender.hasPermission("vision.admin")) {
             sender.sendMessage(text(plugin, sender, "§cDafür hast du keine Berechtigung.", "§cYou do not have permission."));
-            return true;
-        }
-
-        if (args.length >= 1 && args[0].equalsIgnoreCase("updates")) {
-            plugin.getPluginUpdateManager().handleCommand(sender, args);
             return true;
         }
 
@@ -131,13 +134,7 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
                 case "disease" -> plugin.getDiseaseManager().infect(target);
                 case "thirst" -> plugin.getThirstManager().testDehydration(target);
                 case "leash" -> plugin.getLeashManager().testLeash(partner, target);
-                case "sit" -> {
-                    boolean enabled = plugin.getConfig().getBoolean("sit.enabled", true);
-                    if (enabled) {
-                        plugin.getSitManager().sit(partner, target);
-                    }
-                    yield enabled && target.isInsideVehicle();
-                }
+                case "sit" -> plugin.getSitManager().sit(partner, target);
                 case "spread" -> plugin.getConfig().getBoolean("disease.spread_enabled", true)
                         && plugin.getDiseaseManager().isDiseased(partner) && plugin.getDiseaseManager().infect(target);
                 case "healing" -> {
@@ -255,7 +252,7 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
                 "§eUsage: /" + label + " [menu|admin] | reload | heal [player] | infect <player>"));
         sender.sendMessage("§e/" + label + " language <de|en>");
         sender.sendMessage("§e/" + label + " voicechat");
-        sender.sendMessage("§e/" + label + " updates");
+        sender.sendMessage("§e/update <check|install|source>");
         sender.sendMessage("§e/" + label + " test <" + String.join("|", TEST_EFFECTS.keySet()) + "> [Spieler] [Partner]");
         sender.sendMessage("§e/" + label + " <" + String.join("|", FEATURE_PATHS.keySet()) + "> <on|off>");
         return true;
@@ -263,11 +260,15 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (command.getName().equalsIgnoreCase("update")) {
+            return sender.hasPermission("vision.admin")
+                    ? plugin.getPluginUpdateManager().complete(args) : Collections.emptyList();
+        }
         if (args.length == 1) {
             List<String> completions = new ArrayList<>();
             List<String> subcommands = new ArrayList<>(List.of("menu"));
             if (sender.hasPermission("vision.admin")) {
-                subcommands.addAll(List.of("admin", "reload", "heilen", "anstecken", "heal", "infect", "language", "sprache", "test", "voicechat", "updates"));
+                subcommands.addAll(List.of("admin", "reload", "heilen", "anstecken", "heal", "infect", "language", "sprache", "test", "voicechat"));
                 subcommands.addAll(FEATURE_PATHS.keySet());
             }
             for (String subcommand : subcommands) {
@@ -276,9 +277,6 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
                 }
             }
             return completions;
-        }
-        if (sender.hasPermission("vision.admin") && args[0].equalsIgnoreCase("updates")) {
-            return plugin.getPluginUpdateManager().complete(args);
         }
         if (sender.hasPermission("vision.admin") && args[0].equalsIgnoreCase("test")) {
             if (args.length == 2) {

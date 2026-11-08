@@ -69,7 +69,7 @@ public final class PluginUpdateManager implements Listener {
         if (!sender.hasPermission("vision.admin")) {
             return;
         }
-        if (args.length == 1) {
+        if (args.length == 0) {
             if (sender instanceof Player player) {
                 open(player, 0);
             } else {
@@ -77,56 +77,60 @@ public final class PluginUpdateManager implements Listener {
             }
             return;
         }
-        if (args.length == 2 && args[1].equalsIgnoreCase("check")) {
+        if (args.length == 1 && args[0].equalsIgnoreCase("check")) {
             check(sender);
             return;
         }
-        if (args.length == 4 && args[1].equalsIgnoreCase("source")) {
+        if (args.length == 3 && args[0].equalsIgnoreCase("source")) {
             if (busy) {
                 sender.sendMessage(text(plugin, sender, "§eBitte warte auf den laufenden Vorgang.", "§ePlease wait for the current operation."));
                 return;
             }
-            Plugin target = plugin.getServer().getPluginManager().getPlugin(args[2]);
+            Plugin target = plugin.getServer().getPluginManager().getPlugin(args[1]);
             if (target == null || target == plugin) {
                 sender.sendMessage(text(plugin, sender, "§cUnbekanntes Plugin. Vision wird über Kodari aktualisiert.", "§cUnknown plugin. Update Vision through Kodari."));
                 return;
             }
-            String project = args[3].equalsIgnoreCase("none") ? "" : projectId(args[3]);
+            boolean automatic = args[2].equalsIgnoreCase("auto");
+            String project = args[2].equalsIgnoreCase("none") || automatic ? "" : projectId(args[2]);
             if (project == null) {
-                sender.sendMessage(text(plugin, sender, "§cGib eine Modrinth-Projekt-ID oder einen Modrinth-Projektlink an.", "§cSpecify a Modrinth project ID or project URL."));
+                sender.sendMessage(text(plugin, sender, "§cGib eine Modrinth-ID, einen Modrinth-/Spigot-Link oder spigot:<ID> an.", "§cSpecify a Modrinth ID, a Modrinth/Spigot URL or spigot:<ID>."));
                 return;
             }
-            plugin.getConfig().set("plugin_updates.projects." + target.getName(), project);
+            plugin.getConfig().set("plugin_updates.projects." + target.getName(), automatic ? null : project);
             plugin.saveConfig();
             rows = List.of();
             checkedAt = null;
-            sender.sendMessage("§a" + target.getName() + " §8→ §f" + (project.isEmpty() ? "—" : project));
-            sender.sendMessage(text(plugin, sender, "§7Prüfe die Zuordnung auf Modrinth. Danach /vision updates check.", "§7Verify the project on Modrinth. Then run /vision updates check."));
+            sender.sendMessage("§a" + target.getName() + " §8→ §f" + (automatic ? "auto" : project.isEmpty() ? "—" : sourceLink(project)));
+            sender.sendMessage(text(plugin, sender, "§7Danach /update check. Namenstreffer vor der Zuordnung selbst prüfen.", "§7Then run /update check. Verify name matches before assigning them."));
             refreshMenus();
             return;
         }
-        if (args.length >= 3 && args[1].equalsIgnoreCase("install")) {
-            if (args.length == 4 && args[3].equalsIgnoreCase("confirm")) {
-                install(sender, args[2]);
+        if (args.length >= 2 && args[0].equalsIgnoreCase("install")) {
+            if (args.length == 3 && args[2].equalsIgnoreCase("confirm")) {
+                install(sender, args[1]);
             } else {
                 sender.sendMessage(text(plugin, sender,
                         "§eUpdates sind ausführbarer Fremdcode. Prüfe die Quellen und sichere deinen Server. Keine Garantie für Hybrid-Kompatibilität.",
                         "§eUpdates execute third-party code. Verify sources and back up your server. Hybrid compatibility is not guaranteed."));
-                sender.sendMessage("§e/vision updates install " + args[2] + " confirm");
+                sender.sendMessage("§e/update install " + args[1] + " confirm");
             }
             return;
         }
-        sender.sendMessage("§e/vision updates [check]");
-        sender.sendMessage("§e/vision updates source <Plugin> <Modrinth-ID|URL|none>");
-        sender.sendMessage("§e/vision updates install <Plugin|all> confirm");
+        sender.sendMessage("§e/update [check]");
+        sender.sendMessage("§e/update source <Plugin> <Modrinth-ID|Spigot-URL|auto|none>");
+        sender.sendMessage("§e/update install <Plugin|all> confirm");
     }
 
     public List<String> complete(String[] args) {
         List<String> choices = new ArrayList<>();
-        if (args.length == 2) {
+        if (args.length == 0) {
+            return List.of();
+        }
+        if (args.length == 1) {
             choices.addAll(List.of("check", "source", "install"));
-        } else if (args.length == 3 && (args[1].equalsIgnoreCase("source") || args[1].equalsIgnoreCase("install"))) {
-            if (args[1].equalsIgnoreCase("install")) {
+        } else if (args.length == 2 && (args[0].equalsIgnoreCase("source") || args[0].equalsIgnoreCase("install"))) {
+            if (args[0].equalsIgnoreCase("install")) {
                 choices.add("all");
             }
             for (Plugin installed : plugin.getServer().getPluginManager().getPlugins()) {
@@ -134,8 +138,10 @@ public final class PluginUpdateManager implements Listener {
                     choices.add(installed.getName());
                 }
             }
-        } else if (args.length == 4 && args[1].equalsIgnoreCase("install")) {
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("install")) {
             choices.add("confirm");
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("source")) {
+            choices.addAll(List.of("auto", "none"));
         }
         String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
         return choices.stream().filter(value -> value.toLowerCase(Locale.ROOT).startsWith(prefix)).sorted().toList();
@@ -160,16 +166,19 @@ public final class PluginUpdateManager implements Listener {
             Row row = rows.get(holder.page * 45 + index);
             List<String> lore = new ArrayList<>();
             lore.add("§7" + row.currentVersion + (row.update == null ? "" : " §8→ §a" + row.update.version));
-            lore.add(text(plugin, player, "§7Quelle: §f", "§7Source: §f") + (row.source.isEmpty() ? "—" : "modrinth.com/plugin/" + row.source));
+            lore.add(text(plugin, player, "§7Quelle: §f", "§7Source: §f") + (row.source.isEmpty() ? "—" : sourceLink(row.source)));
             lore.add(text(plugin, player, "§7Status: §f", "§7Status: §f") + status(player, row.status));
+            for (String suggestion : row.suggestions) {
+                lore.add("§e" + sourceLink(suggestion));
+            }
             lore.add("");
             lore.add(text(plugin, player, "§eKlick: Update mit Bestätigung vorbereiten", "§eClick: stage update after confirmation"));
-            lore.add(text(plugin, player, "§7Quelle zuordnen: /vision updates source", "§7Assign source: /vision updates source"));
+            lore.add(text(plugin, player, "§7Quelle zuordnen: /update source", "§7Assign source: /update source"));
             holder.inventory.setItem(index, item(row.update != null ? "LIME_DYE" : "PAPER", "§b" + row.name, lore));
         }
         holder.inventory.setItem(45, item("ARROW", "§e←", List.of()));
         holder.inventory.setItem(46, item("COMPASS", text(plugin, player, "§bUpdates prüfen", "§bCheck updates"), List.of(
-                busy ? text(plugin, player, "§eVorgang läuft …", "§eOperation in progress …") : text(plugin, player, "§7Neueste stabile Version für diesen Server prüfen.", "§7Check latest stable releases for this server."))));
+                busy ? text(plugin, player, "§eVorgang läuft …", "§eOperation in progress …") : text(plugin, player, "§7Quellen automatisch suchen und Updates prüfen.", "§7Find sources automatically and check updates."))));
         holder.inventory.setItem(48, item("CHEST", text(plugin, player, "§aAlle verfügbaren Updates", "§aAll available updates"), List.of(
                 text(plugin, player, "§7Download erst nach Bestätigung.", "§7Downloads require confirmation."),
                 text(plugin, player, "§7JAR-Sicherung; Installation beim Neustart.", "§7JAR backup; installation on restart."))));
@@ -177,8 +186,10 @@ public final class PluginUpdateManager implements Listener {
         holder.inventory.setItem(50, item("BOOK", text(plugin, player, "§6Wichtige Hinweise", "§6Important information"), List.of(
                 text(plugin, player, "§7Nur Bukkit-/Spigot-Plugins, keine Forge-Mods.", "§7Bukkit/Spigot plugins only, not Forge mods."),
                 text(plugin, player, "§7Premium-Plugins und fehlende Quellen: manuell.", "§7Premium plugins and missing sources: manual."),
+                text(plugin, player, "§7Externe Spigot-Downloads: manuell.", "§7External Spigot downloads: manual."),
+                text(plugin, player, "§7Spigot/Spiget liefert keine SHA-512-Prüfsumme.", "§7Spigot/Spiget provides no SHA-512 checksum."),
                 text(plugin, player, "§7Arclight-Kompatibilität vorher prüfen.", "§7Check Arclight compatibility first."),
-                "§e/vision updates source <Plugin> <Modrinth-ID>")));
+                "§e/update source <Plugin> <URL>")));
         holder.inventory.setItem(53, item("ARROW", "§e→", List.of()));
     }
 
@@ -186,6 +197,7 @@ public final class PluginUpdateManager implements Listener {
         List<Row> snapshot = new ArrayList<>();
         for (Plugin installed : plugin.getServer().getPluginManager().getPlugins()) {
             String source = plugin.getConfig().getString("plugin_updates.projects." + installed.getName());
+            boolean automatic = source == null;
             if (source == null) {
                 source = projectId(installed.getDescription().getWebsite());
             }
@@ -208,7 +220,8 @@ public final class PluginUpdateManager implements Listener {
                 }
             } catch (Exception ignored) {
             }
-            String status = installed == plugin ? "self" : jar == null ? "nojar" : source.isEmpty() ? "source" : "unchecked";
+            String status = installed == plugin ? "self" : jar == null ? "nojar"
+                    : source.isEmpty() ? automatic ? "discover" : "disabled" : "unchecked";
             snapshot.add(new Row(installed.getName(), installed.getDescription().getVersion(),
                     installed.getDescription().getMain(), jar, source, status));
         }
@@ -235,11 +248,16 @@ public final class PluginUpdateManager implements Listener {
                 if (closed) {
                     return;
                 }
-                if (!row.status.equals("unchecked")) {
+                if (!row.status.equals("unchecked") && !row.status.equals("discover")) {
                     continue;
                 }
                 try {
-                    findUpdate(row, minecraft, loaders);
+                    if (row.status.equals("discover")) {
+                        discover(row, loaders);
+                    }
+                    if (row.status.equals("unchecked")) {
+                        findUpdate(row, minecraft, loaders);
+                    }
                 } catch (Exception exception) {
                     row.status = "error";
                     plugin.getLogger().warning("Update-Prüfung " + row.name + ": " + exception.getMessage());
@@ -254,6 +272,12 @@ public final class PluginUpdateManager implements Listener {
                 for (Row row : rows) {
                     sender.sendMessage("§7" + row.name + " §8» §f" + status(sender, row.status)
                             + (row.update == null ? "" : " §a" + row.currentVersion + " → " + row.update.version));
+                    if (!row.source.isEmpty()) {
+                        sender.sendMessage("§7  " + sourceLink(row.source));
+                    }
+                    for (String suggestion : row.suggestions) {
+                        sender.sendMessage("§e  /update source " + row.name + " " + sourceLink(suggestion));
+                    }
                 }
                 refreshMenus();
             });
@@ -262,6 +286,10 @@ public final class PluginUpdateManager implements Listener {
     }
 
     private void findUpdate(Row row, String minecraft, List<String> loaders) throws Exception {
+        if (row.source.startsWith("spigot:")) {
+            findSpigotUpdate(row, minecraft);
+            return;
+        }
         String loaderJson = loaders.stream().map(value -> "\"" + value + "\"").collect(Collectors.joining(",", "[", "]"));
         String url = "https://api.modrinth.com/v2/project/" + row.source + "/version?include_changelog=false&game_versions="
                 + encode("[\"" + minecraft + "\"]") + "&loaders=" + encode(loaderJson);
@@ -326,13 +354,145 @@ public final class PluginUpdateManager implements Listener {
         row.status = "available";
     }
 
+    private void discover(Row row, List<String> loaders) throws Exception {
+        List<String> errors = new ArrayList<>();
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-512");
+            try (InputStream input = Files.newInputStream(row.jar)) {
+                byte[] buffer = new byte[16384];
+                int length;
+                while ((length = input.read(buffer)) != -1) {
+                    if (closed || Thread.currentThread().isInterrupted()) {
+                        throw new IOException("Abgebrochen");
+                    }
+                    digest.update(buffer, 0, length);
+                }
+            }
+            ConfigurationSection match = api(URI.create("https://api.modrinth.com/v2/version_file/"
+                    + HexFormat.of().formatHex(digest.digest()) + "?algorithm=sha512"), true);
+            if (match != null && match.getStringList("loaders").stream().anyMatch(loaders::contains)) {
+                String project = match.getString("project_id", "");
+                if (project.matches("[A-Za-z0-9_-]{1,100}")) {
+                    row.source = project;
+                    row.status = "unchecked";
+                    return;
+                }
+            }
+        } catch (Exception exception) {
+            errors.add("Modrinth-Dateiabgleich: " + exception.getMessage());
+        }
+        try {
+            String facets = loaders.stream().map(value -> "\"categories:" + value + "\"")
+                    .collect(Collectors.joining(",", "[[", "]]"));
+            ConfigurationSection result = api(URI.create("https://api.modrinth.com/v2/search?limit=20&query="
+                    + encode(row.name) + "&facets=" + encode(facets)), false);
+            for (Map<?, ?> map : result.getMapList("hits")) {
+                ConfigurationSection hit = section(map);
+                if (sameName(row.name, hit.getString("title", ""))) {
+                    addSuggestion(row, projectId(hit.getString("project_id", "")));
+                }
+            }
+        } catch (Exception exception) {
+            errors.add("Modrinth-Suche: " + exception.getMessage());
+        }
+        try {
+            ConfigurationSection result = api(URI.create("https://api.spiget.org/v2/search/resources/"
+                    + encode(row.name).replace("+", "%20") + "?field=name&size=20"), true);
+            if (result != null) {
+                for (Map<?, ?> map : result.getMapList("entries")) {
+                    ConfigurationSection hit = section(map);
+                    if (sameName(row.name, hit.getString("name", ""))) {
+                        String id = hit.getString("id", "");
+                        if (id.matches("[0-9]{1,12}")) {
+                            addSuggestion(row, "spigot:" + id);
+                        }
+                    }
+                }
+            }
+        } catch (Exception exception) {
+            errors.add("Spigot-Suche: " + exception.getMessage());
+        }
+        row.status = row.suggestions.isEmpty() ? errors.isEmpty() ? "source" : "searcherror" : "review";
+        if (!errors.isEmpty()) {
+            plugin.getLogger().warning("Quellensuche " + row.name + ": " + String.join("; ", errors));
+        }
+    }
+
+    private static void addSuggestion(Row row, String source) {
+        if (source != null && !row.suggestions.contains(source) && row.suggestions.size() < 8) {
+            row.suggestions.add(source);
+        }
+    }
+
+    private static boolean sameName(String installed, String title) {
+        String first = title.split("\\s+[|–—-]\\s+|\\[", 2)[0];
+        String expected = installed.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+        return !expected.isEmpty() && expected.equals(first.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", ""));
+    }
+
+    private void findSpigotUpdate(Row row, String minecraft) throws Exception {
+        String id = row.source.substring("spigot:".length());
+        String base = "https://api.spiget.org/v2/resources/" + id;
+        ConfigurationSection resource = api(URI.create(base), false);
+        if (resource.getBoolean("premium", false)) {
+            row.status = "premium";
+            return;
+        }
+        if (resource.getBoolean("external", false) || resource.getBoolean("file.external", false)) {
+            row.status = "external";
+            return;
+        }
+        String family = minecraft.replaceFirst("^(\\d+\\.\\d+)\\..*$", "$1");
+        if (resource.getStringList("testedVersions").stream().noneMatch(value -> value.equals(minecraft) || value.equals(family))) {
+            row.status = "incompatible";
+            return;
+        }
+        ConfigurationSection latest = api(URI.create(base + "/versions/latest"), false);
+        String version = latest.getString("name", "");
+        if (Pattern.compile("(?i)(alpha|beta|snapshot|pre[- .]?release|dev|(?:^|[^a-z])rc[0-9]*)").matcher(version).find()) {
+            row.status = "unstable";
+            return;
+        }
+        Integer comparison = compareVersions(version, row.currentVersion);
+        if (comparison == null) {
+            row.status = "version";
+        } else if (comparison <= 0) {
+            row.status = "current";
+        } else if (!resource.getString("file.type", "").equalsIgnoreCase(".jar")) {
+            row.status = "file";
+        } else {
+            row.update = new Update(version, URI.create(base + "/download"), "", -1);
+            row.status = "available";
+        }
+    }
+
+    private ConfigurationSection api(URI uri, boolean allowMissing) throws Exception {
+        HttpResponse<InputStream> response = http.send(request(uri).GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+        try (InputStream input = response.body()) {
+            if (allowMissing && response.statusCode() == 404) {
+                return null;
+            }
+            if (response.statusCode() != 200) {
+                throw new IOException(uri.getHost() + " HTTP " + response.statusCode());
+            }
+            byte[] bytes = input.readNBytes(4 * 1024 * 1024 + 1);
+            if (bytes.length > 4 * 1024 * 1024) {
+                throw new IOException("API-Antwort zu groß");
+            }
+            String json = new String(bytes, StandardCharsets.UTF_8).strip();
+            YamlConfiguration parsed = new YamlConfiguration();
+            parsed.loadFromString(json.startsWith("[") ? "{\"entries\":" + json + "}" : json);
+            return parsed;
+        }
+    }
+
     private void install(CommandSender sender, String target) {
         if (!sender.hasPermission("vision.updates.install")) {
             sender.sendMessage(text(plugin, sender, "§cBenötigt zusätzlich vision.updates.install (standardmäßig nur OP).", "§cAlso requires vision.updates.install (OP by default)."));
             return;
         }
         if (busy || checkedAt == null || Duration.between(checkedAt, Instant.now()).toMinutes() >= 10) {
-            sender.sendMessage(text(plugin, sender, "§eZuerst /vision updates check ausführen und abwarten.", "§eFirst run /vision updates check and wait for it to finish."));
+            sender.sendMessage(text(plugin, sender, "§eZuerst /update check ausführen und abwarten.", "§eFirst run /update check and wait for it to finish."));
             return;
         }
         List<Row> selected = rows.stream().filter(row -> row.update != null && row.status.equals("available")
@@ -347,6 +507,11 @@ public final class PluginUpdateManager implements Listener {
         String minecraft = plugin.getServer().getBukkitVersion().split("-", 2)[0];
         busy = true;
         sender.sendMessage(text(plugin, sender, "§eUpdates werden geprüft, gesichert und heruntergeladen …", "§eValidating, backing up and downloading updates …"));
+        if (selected.stream().anyMatch(row -> row.source.startsWith("spigot:"))) {
+            sender.sendMessage(text(plugin, sender,
+                    "§eSpigot/Spiget: keine veröffentlichte SHA-512-Prüfsumme. HTTPS-Download und Plugin-Identitätsprüfung bleiben aktiv.",
+                    "§eSpigot/Spiget: no published SHA-512 checksum. HTTPS download and plugin identity validation remain active."));
+        }
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             List<String> successful = new ArrayList<>();
             List<String> failures = new ArrayList<>();
@@ -399,12 +564,14 @@ public final class PluginUpdateManager implements Listener {
         if (Files.exists(destination)) {
             throw new IOException("Update bereits vorhanden; zuerst neu starten oder die vorbereitete JAR manuell prüfen");
         }
-        if (row.update.size <= 0 || row.update.size > MAX_JAR_BYTES || !isOfficialDownload(row.update.url)) {
+        boolean spigot = row.source.startsWith("spigot:");
+        if (row.update.size > MAX_JAR_BYTES || (!spigot && row.update.size <= 0)
+                || !(spigot ? isSpigotDownload(row.update.url) : isOfficialDownload(row.update.url))) {
             throw new IOException("Ungültige Downloadgröße oder Quelle");
         }
         Path temporary = Files.createTempFile(realUpdates, "vision-download-", ".tmp");
         try {
-            HttpResponse<InputStream> response = http.send(request(row.update.url).GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+            HttpResponse<InputStream> response = download(row.update.url, spigot);
             MessageDigest hash = MessageDigest.getInstance("SHA-512");
             long count = 0;
             try (InputStream input = response.body(); OutputStream output = Files.newOutputStream(temporary)) {
@@ -418,14 +585,15 @@ public final class PluginUpdateManager implements Listener {
                         throw new IOException("Abgebrochen");
                     }
                     count += length;
-                    if (count > MAX_JAR_BYTES || count > row.update.size) {
+                    if (count > MAX_JAR_BYTES || (row.update.size > 0 && count > row.update.size)) {
                         throw new IOException("Download zu groß");
                     }
                     hash.update(buffer, 0, length);
                     output.write(buffer, 0, length);
                 }
             }
-            if (count != row.update.size || !HexFormat.of().formatHex(hash.digest()).equalsIgnoreCase(row.update.hash)) {
+            if (count == 0 || (!spigot && (count != row.update.size
+                    || !HexFormat.of().formatHex(hash.digest()).equalsIgnoreCase(row.update.hash)))) {
                 throw new IOException("Größe oder SHA-512 stimmt nicht");
             }
             validateJar(temporary, row, installedNames, minecraft);
@@ -440,6 +608,26 @@ public final class PluginUpdateManager implements Listener {
         } finally {
             Files.deleteIfExists(temporary);
         }
+    }
+
+    private HttpResponse<InputStream> download(URI initial, boolean spigot) throws Exception {
+        URI uri = initial;
+        for (int redirects = 0; redirects <= 5; redirects++) {
+            if (!(spigot ? isSpigotDownload(uri) : isOfficialDownload(uri))) {
+                throw new IOException("Externe Downloadquelle; bitte manuell aktualisieren");
+            }
+            HttpResponse<InputStream> response = http.send(request(uri).GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+            int code = response.statusCode();
+            if (code != 301 && code != 302 && code != 303 && code != 307 && code != 308) {
+                return response;
+            }
+            try (InputStream ignored = response.body()) {
+                String location = response.headers().firstValue("Location")
+                        .orElseThrow(() -> new IOException("Download-Weiterleitung ohne Ziel"));
+                uri = uri.resolve(location);
+            }
+        }
+        throw new IOException("Zu viele Download-Weiterleitungen");
     }
 
     private void validateJar(Path jar, Row row, Set<String> installedNames, String minecraft) throws Exception {
@@ -463,6 +651,10 @@ public final class PluginUpdateManager implements Listener {
             Integer version = compareVersions(descriptor.getString("version", ""), row.currentVersion);
             if (version == null || version <= 0) {
                 throw new IOException("JAR enthält keine eindeutig neuere Version");
+            }
+            Integer expected = compareVersions(descriptor.getString("version", ""), row.update.version);
+            if (expected == null || expected != 0) {
+                throw new IOException("JAR-Version entspricht nicht dem geprüften Update; erneut prüfen oder manuell aktualisieren");
             }
             String requiredApi = descriptor.getString("api-version", "");
             Integer api = requiredApi.isEmpty() ? 0 : compareVersions(requiredApi, minecraft);
@@ -495,16 +687,44 @@ public final class PluginUpdateManager implements Listener {
                 && uri.getUserInfo() == null && (uri.getPort() == -1 || uri.getPort() == 443);
     }
 
+    private static boolean isSpigotDownload(URI uri) {
+        String host = uri.getHost();
+        return "https".equalsIgnoreCase(uri.getScheme()) && host != null
+                && Set.of("api.spiget.org", "cdn.spiget.org", "spigotmc.org", "www.spigotmc.org").contains(host.toLowerCase(Locale.ROOT))
+                && uri.getUserInfo() == null && (uri.getPort() == -1 || uri.getPort() == 443);
+    }
+
+    private static String sourceLink(String source) {
+        return source.startsWith("spigot:") ? "https://www.spigotmc.org/resources/" + source.substring(7) + "/"
+                : "https://modrinth.com/plugin/" + source;
+    }
+
     private static String projectId(String input) {
         if (input == null || input.isBlank()) {
             return null;
+        }
+        input = input.trim();
+        if (input.matches("(?i)spigot:[0-9]{1,12}")) {
+            return "spigot:" + input.substring(7);
+        }
+        if (input.matches("(?i)modrinth:[A-Za-z0-9_-]{1,100}")) {
+            return input.substring(9);
         }
         if (input.matches("[A-Za-z0-9_-]{1,100}")) {
             return input;
         }
         try {
             URI uri = URI.create(input);
-            if (!"https".equalsIgnoreCase(uri.getScheme()) || !"modrinth.com".equalsIgnoreCase(uri.getHost())) {
+            if (!("https".equalsIgnoreCase(uri.getScheme()) || "http".equalsIgnoreCase(uri.getScheme()))
+                    || uri.getHost() == null || uri.getUserInfo() != null || (uri.getPort() != -1 && uri.getPort() != 443 && uri.getPort() != 80)) {
+                return null;
+            }
+            String host = uri.getHost().toLowerCase(Locale.ROOT);
+            if (host.equals("spigotmc.org") || host.equals("www.spigotmc.org")) {
+                Matcher resource = Pattern.compile("^/resources/(?:[^/]*\\.)?([0-9]{1,12})(?:/.*)?$").matcher(uri.getPath());
+                return resource.matches() ? "spigot:" + resource.group(1) : null;
+            }
+            if (!host.equals("modrinth.com") && !host.equals("www.modrinth.com")) {
                 return null;
             }
             String[] parts = uri.getPath().split("/");
@@ -544,7 +764,14 @@ public final class PluginUpdateManager implements Listener {
         return switch (status) {
             case "self" -> text(plugin, viewer, "Vision über Kodari aktualisieren", "Update Vision through Kodari");
             case "nojar" -> text(plugin, viewer, "Original-JAR nicht gefunden; manuell", "Original JAR not found; manual update");
-            case "source" -> text(plugin, viewer, "Keine Quelle; zuordnen oder manuell", "No source; assign one or update manually");
+            case "source" -> text(plugin, viewer, "Keine eindeutige Quelle gefunden; manuell zuordnen", "No unambiguous source found; assign manually");
+            case "discover" -> text(plugin, viewer, "Automatische Quellensuche bei der Prüfung", "Automatic source discovery during check");
+            case "disabled" -> text(plugin, viewer, "Quellensuche aus; mit source <Plugin> auto aktivieren", "Discovery disabled; enable with source <Plugin> auto");
+            case "review" -> text(plugin, viewer, "Quellenvorschläge gefunden; Link prüfen und zuordnen", "Source suggestions found; verify and assign a URL");
+            case "searcherror" -> text(plugin, viewer, "Quellensuche teilweise fehlgeschlagen; siehe Konsole", "Source discovery partially failed; see console");
+            case "premium" -> text(plugin, viewer, "Premium-Plugin; manuell herunterladen", "Premium plugin; download manually");
+            case "external" -> text(plugin, viewer, "Externer Download; manuell herunterladen", "External download; download manually");
+            case "unstable" -> text(plugin, viewer, "Neueste Spigot-Version ist keine stabile Veröffentlichung", "Latest Spigot version is not a stable release");
             case "unchecked" -> text(plugin, viewer, "Noch nicht geprüft", "Not checked yet");
             case "incompatible" -> text(plugin, viewer, "Keine passende stabile Bukkit-/Spigot-Version", "No matching stable Bukkit/Spigot version");
             case "version" -> text(plugin, viewer, "Versionsschema manuell prüfen", "Check version scheme manually");
@@ -560,7 +787,8 @@ public final class PluginUpdateManager implements Listener {
         MenuHolder holder = new MenuHolder(player, 0, target);
         holder.inventory.setItem(11, item("LIME_DYE", text(plugin, player, "§aDownload bestätigen", "§aConfirm download"), List.of(
                 "§f" + target,
-                text(plugin, player, "§7Ausführbarer Fremdcode aus Modrinth.", "§7Third-party executable code from Modrinth."),
+                text(plugin, player, "§7Fremdcode aus Modrinth oder Spigot/Spiget.", "§7Third-party code from Modrinth or Spigot/Spiget."),
+                text(plugin, player, "§eSpigot: ohne veröffentlichte SHA-512-Prüfsumme.", "§eSpigot: no published SHA-512 checksum."),
                 text(plugin, player, "§7Hybrid-Kompatibilität selbst prüfen.", "§7Verify hybrid compatibility yourself."),
                 text(plugin, player, "§7Installation erst nach vollständigem Neustart.", "§7Installation only after a full restart."))));
         holder.inventory.setItem(15, item("BARRIER", text(plugin, player, "§cAbbrechen", "§cCancel"), List.of()));
@@ -599,8 +827,11 @@ public final class PluginUpdateManager implements Listener {
                     if (row.update != null && row.status.equals("available")) {
                         confirm(player, row.name);
                     } else {
-                        player.sendMessage("§e/vision updates source " + row.name + " <Modrinth-ID>");
-                        player.sendMessage("§e/vision updates check");
+                        for (String suggestion : row.suggestions) {
+                            player.sendMessage("§e/update source " + row.name + " " + sourceLink(suggestion));
+                        }
+                        player.sendMessage("§e/update source " + row.name + " <Modrinth-/Spigot-URL>");
+                        player.sendMessage("§e/update check");
                     }
                 }
             } else if (slot == 45 || slot == 53) {
@@ -683,7 +914,8 @@ public final class PluginUpdateManager implements Listener {
         private final String currentVersion;
         private final String main;
         private final Path jar;
-        private final String source;
+        private String source;
+        private final List<String> suggestions = new ArrayList<>();
         private String status;
         private Update update;
 

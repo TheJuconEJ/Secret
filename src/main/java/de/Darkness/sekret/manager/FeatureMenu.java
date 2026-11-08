@@ -117,7 +117,9 @@ public final class FeatureMenu implements Listener {
                 text(plugin, player, "§eKlicken zum Öffnen", "§eClick to open"))));
         inventory.setItem(41, item("ENDER_CHEST", text(plugin, player, "§a§lPlugin-Updates", "§a§lPlugin updates"), List.of(
                 text(plugin, player, "§7Andere Plugins prüfen und Updates vorbereiten.", "§7Check other plugins and stage updates."),
-                text(plugin, player, "§7Nur nach Bestätigung; Installation beim Neustart.", "§7Confirmation required; installation on restart."))));
+                text(plugin, player, "§7Nur nach Bestätigung; Installation beim Neustart.", "§7Confirmation required; installation on restart."),
+                "§e/update check | install | source",
+                text(plugin, player, "§eKlicken zum Öffnen", "§eClick to open"))));
         inventory.setItem(40, item("BARRIER", text(plugin, player, "§c§lSchließen", "§c§lClose"), List.of(text(plugin, player, "§7Menü schließen.", "§7Close menu."))));
         ItemStack playerHead = item("PLAYER_HEAD", text(plugin, player, "§b§lMein Menü", "§b§lMy menu"), List.of(
                 "§f" + player.getName(),
@@ -163,7 +165,7 @@ public final class FeatureMenu implements Listener {
             case EXCITEMENT -> "Death mechanic after prolonged player proximity.";
             case TRIPPING -> "Random tripping while walking.";
             case LEASH -> "Lead players with a leash.";
-            case SIT -> "Make leashed players sit down.";
+            case SIT -> "Sit on the ground, stairs, slabs or other players.";
             case DISEASE -> "Disabling pauses existing diseases.";
             case SOUND -> "Play sound.mp3 at the configured time.";
             case SPAWN -> "Enable the /spawn command.";
@@ -296,7 +298,7 @@ public final class FeatureMenu implements Listener {
         EXCITEMENT(11, "excitement", "excitement.enabled", "Erregung", "Todesmechanik bei längerer Spielernähe.", "BLAZE_POWDER"),
         TRIPPING(12, "tripping", "tripping.enabled", "Stolpern", "Zufälliges Stolpern beim Gehen.", "LEATHER_BOOTS"),
         LEASH(13, "leash", "leash.enabled", "Spieler anleinen", "Spieler mit einer Leine führen.", "LEAD"),
-        SIT(14, "sit", "sit.enabled", "Hinsetzen", "Angeleinte Spieler hinsetzen.", "OAK_STAIRS"),
+        SIT(14, "sit", "sit.enabled", "Hinsetzen", "Auf Boden, Treppen, Stufen oder Spielern sitzen.", "OAK_STAIRS"),
         DISEASE(15, "disease", "disease.enabled", "Krankheiten", "Ausschalten pausiert bestehende Krankheiten.", "SPIDER_EYE"),
         SOUND(16, "sound", "scheduled_sound.enabled", "Zeitgesteuerte Musik", "sound.mp3 zur eingestellten Uhrzeit abspielen.", "JUKEBOX"),
         SPAWN(19, "spawn", "spawn.enabled", "Spawn-Teleport", "Den Befehl /spawn freigeben.", "COMPASS"),

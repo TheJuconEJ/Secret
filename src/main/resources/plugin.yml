@@ -1,5 +1,5 @@
 name: Vision
-version: 1.0.7
+version: 1.0.11
 main: de.Darkness.sekret.SekretPlugin
 api-version: '1.21'
 author: Darkness
@@ -12,10 +12,14 @@ libraries:
 commands:
   vision:
     description: Verwaltet das Vision-Plugin.
-    usage: /vision [menu|admin] | updates | voicechat | test <effect> [player] [partner] | language <de|en> | reload | heal [player] | infect <player> | <feature> <on|off>
+    usage: /vision [menu|admin] | voicechat | test <effect> [player] [partner] | language <de|en> | reload | heal [player] | infect <player> | <feature> <on|off>
+  update:
+    description: Prüft Plugin-Updates, verwaltet Quellen und bereitet Updates vor.
+    usage: /update <check|install|source>
+    permission: vision.admin
   sit:
-    description: Setzt eine angeleinte Person hin.
-    usage: /sit <angeleinter>
+    description: Setzt dich selbst oder eine angeleinte Person hin.
+    usage: /sit [angeleinter]
   spawn:
     description: Teleportiert zum Spawn der aktuellen Welt.
     usage: /spawn [set]

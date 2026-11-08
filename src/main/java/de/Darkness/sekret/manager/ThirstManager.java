@@ -63,7 +63,7 @@ public final class ThirstManager implements Listener {
     private final Set<UUID> displayedBars = new HashSet<>();
     private BukkitTask task;
     private int saveTicks;
-    private String hudId;
+    private String hudId = "iasurvival:thirst_bar";
     private boolean missingHudWarned;
 
     public ThirstManager(SekretPlugin plugin) {
@@ -103,8 +103,8 @@ public final class ThirstManager implements Listener {
         missingHudWarned = false;
         if (enabled()) {
             task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
-            refresh();
         }
+        refresh();
         save();
     }
 
@@ -237,7 +237,8 @@ public final class ThirstManager implements Listener {
 
     private void clearBar(Player player) {
         updateDehydration(player, false);
-        if (displayedBars.remove(player.getUniqueId()) && ItemsAdder.areItemsLoaded()) {
+        displayedBars.remove(player.getUniqueId());
+        if (ItemsAdder.areItemsLoaded()) {
             PlayerHudsHolderWrapper holder = new PlayerHudsHolderWrapper(player);
             PlayerQuantityHudWrapper hud = new PlayerQuantityHudWrapper(holder, hudId);
             if (hud.exists()) {
@@ -326,6 +327,11 @@ public final class ThirstManager implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         updateBar(event.getPlayer());
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (event.getPlayer().isOnline()) {
+                updateBar(event.getPlayer());
+            }
+        }, 20L);
     }
 
     @EventHandler
