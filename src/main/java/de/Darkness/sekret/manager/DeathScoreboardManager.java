@@ -244,7 +244,7 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
         sidebar.title = text(plugin, player, "§f§lTodesliste", "§f§lDeaths");
         sidebar.content.clear();
         sidebar.content.add(" ");
-        sidebar.content.add(text(plugin, player, "§8▸ §7§lMEISTE TODE", "§8▸ §7§lMOST DEATHS"));
+        sidebar.content.add("§8▸ §7§lTOP 5");
         for (int i = 0; i < TOP_SIZE; i++) {
             String rankColor = switch (i) {
                 case 0 -> "§6";
@@ -255,19 +255,23 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
             if (i < players.size()) {
                 UUID id = players.get(i);
                 String nameColor = id.equals(player.getUniqueId()) ? "§b" : "§7";
-                sidebar.content.add(rankColor + "◆ " + nameColor + names.get(id) + " §8┃ §c" + deaths.getOrDefault(id, 0));
+                String name = names.get(id);
+                if (name.length() > 12) {
+                    name = name.substring(0, 11) + "…";
+                }
+                sidebar.content.add(rankColor + "◆ " + nameColor + name + " §8┃ §c" + deaths.getOrDefault(id, 0));
             } else {
                 sidebar.content.add("§8◇ §8—");
             }
         }
         sidebar.content.add(" ");
-        sidebar.content.add(text(plugin, player, "§8▸ §7§lDEINE STATISTIK", "§8▸ §7§lYOUR STATS"));
+        sidebar.content.add(text(plugin, player, "§8▸ §7§lSTATISTIK", "§8▸ §7§lSTATS"));
         sidebar.content.add(text(plugin, player, "§7Deine Tode §8┃ §c", "§7Your deaths §8┃ §c") + deaths.getOrDefault(player.getUniqueId(), 0));
         long total = deaths.values().stream().mapToLong(Integer::longValue).sum();
         sidebar.content.add(text(plugin, player, "§7Server gesamt §8┃ §c", "§7Server total §8┃ §c") + total);
         sidebar.content.add(" ");
-        sidebar.content.add(text(plugin, player, "§f/todesliste §7• §ean §f/ §eaus", "§f/todesliste §7• §eon §f/ §eoff"));
-        sidebar.content.add("§f§m--------------------------");
+        sidebar.content.add("§f/todesliste");
+        sidebar.content.add("§f§m------------------");
     }
 
     private void renderFrame(Sidebar sidebar) {

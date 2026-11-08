@@ -9,7 +9,6 @@ import de.Darkness.sekret.manager.DiseaseManager;
 import de.Darkness.sekret.manager.FeatureMenu;
 import de.Darkness.sekret.manager.LeashManager;
 import de.Darkness.sekret.manager.PlayerMenu;
-import de.Darkness.sekret.manager.PluginUpdateManager;
 import de.Darkness.sekret.manager.ScheduledSoundManager;
 import de.Darkness.sekret.manager.SettingsMenu;
 import de.Darkness.sekret.manager.SitManager;
@@ -50,8 +49,6 @@ public final class SekretPlugin extends JavaPlugin {
     private SettingsMenu settingsMenu;
     @Getter
     private PlayerMenu playerMenu;
-    @Getter
-    private PluginUpdateManager pluginUpdateManager;
 
     @Override
     public void onEnable() {
@@ -69,7 +66,6 @@ public final class SekretPlugin extends JavaPlugin {
         featureMenu = new FeatureMenu(this);
         thirstManager = new ThirstManager(this);
         settingsMenu = new SettingsMenu(this);
-        pluginUpdateManager = new PluginUpdateManager(this);
 
         getServer().getPluginManager().registerEvents(leashManager, this);
         getServer().getPluginManager().registerEvents(deathMechanicsManager, this);
@@ -80,7 +76,6 @@ public final class SekretPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(thirstManager, this);
         getServer().getPluginManager().registerEvents(settingsMenu, this);
         getServer().getPluginManager().registerEvents(playerMenu, this);
-        getServer().getPluginManager().registerEvents(pluginUpdateManager, this);
         leashManager.start();
 
         PluginCommand deathsCommand = getCommand("todesliste");
@@ -93,12 +88,6 @@ public final class SekretPlugin extends JavaPlugin {
             SekretCommand executor = new SekretCommand(this);
             command.setExecutor(executor);
             command.setTabCompleter(executor);
-        }
-        PluginCommand updateCommand = getCommand("update");
-        if (updateCommand != null) {
-            SekretCommand executor = new SekretCommand(this);
-            updateCommand.setExecutor(executor);
-            updateCommand.setTabCompleter(executor);
         }
         PluginCommand sitCommand = getCommand("sit");
         if (sitCommand != null) {
@@ -130,9 +119,6 @@ public final class SekretPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (pluginUpdateManager != null) {
-            pluginUpdateManager.shutdown();
-        }
         if (playerMenu != null) {
             playerMenu.shutdown();
         }
@@ -259,6 +245,11 @@ public final class SekretPlugin extends JavaPlugin {
                     configuration = new YamlConfiguration();
                     changed = true;
                 }
+            }
+
+            if (configuration.contains("plugin_updates")) {
+                configuration.set("plugin_updates", null);
+                changed = true;
             }
 
             for (String path : defaults.getKeys(true)) {

@@ -1,8 +1,5 @@
 language: "de"
 
-plugin_updates:
-  projects: {}
-
 thirst:
   enabled: true
   drain_interval_seconds: 60

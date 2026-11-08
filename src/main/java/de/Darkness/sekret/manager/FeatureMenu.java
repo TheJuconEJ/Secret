@@ -115,11 +115,6 @@ public final class FeatureMenu implements Listener {
         inventory.setItem(43, item("POTION", text(plugin, player, "§b§lDurstanzeige", "§b§lThirst display"), List.of(
                 text(plugin, player, "§7Die verwendete ItemsAdder-HUD-ID einstellen.", "§7Configure the ItemsAdder HUD ID in use."),
                 text(plugin, player, "§eKlicken zum Öffnen", "§eClick to open"))));
-        inventory.setItem(41, item("ENDER_CHEST", text(plugin, player, "§a§lPlugin-Updates", "§a§lPlugin updates"), List.of(
-                text(plugin, player, "§7Andere Plugins prüfen und Updates vorbereiten.", "§7Check other plugins and stage updates."),
-                text(plugin, player, "§7Nur nach Bestätigung; Installation beim Neustart.", "§7Confirmation required; installation on restart."),
-                "§e/update check | install | source",
-                text(plugin, player, "§eKlicken zum Öffnen", "§eClick to open"))));
         inventory.setItem(40, item("BARRIER", text(plugin, player, "§c§lSchließen", "§c§lClose"), List.of(text(plugin, player, "§7Menü schließen.", "§7Close menu."))));
         ItemStack playerHead = item("PLAYER_HEAD", text(plugin, player, "§b§lMein Menü", "§b§lMy menu"), List.of(
                 "§f" + player.getName(),
@@ -204,14 +199,6 @@ public final class FeatureMenu implements Listener {
             return;
         }
         if (event.getClickedInventory() != top || (!event.isLeftClick() && !event.isRightClick())) {
-            return;
-        }
-        if (event.getRawSlot() == 41) {
-            plugin.getServer().getScheduler().runTask(plugin, () -> {
-                if (player.isOnline() && player.hasPermission("vision.admin") && player.getOpenInventory().getTopInventory() == top) {
-                    plugin.getPluginUpdateManager().open(player, 0);
-                }
-            });
             return;
         }
         String settingsSection = switch (event.getRawSlot()) {
