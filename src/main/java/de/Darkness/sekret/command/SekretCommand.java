@@ -63,6 +63,22 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args.length >= 1 && args[0].equalsIgnoreCase("updates")) {
+            plugin.getPluginUpdateManager().handleCommand(sender, args);
+            return true;
+        }
+
+        if (args.length == 1 && args[0].equalsIgnoreCase("voicechat")) {
+            if (plugin.getScheduledSoundManager() == null) {
+                sender.sendMessage(text(plugin, sender,
+                        "§cDie Simple-Voice-Chat-API fehlt oder ist inkompatibel. Prüfe die Arclight-/Voice-Chat-Version und die Serverkonsole. Die Mod allein stellt nicht automatisch eine Bukkit-Schnittstelle bereit.",
+                        "§cThe Simple Voice Chat API is missing or incompatible. Check the Arclight/voice chat version and server console. The mod alone does not automatically provide a Bukkit API."));
+            } else {
+                plugin.getScheduledSoundManager().sendStatus(sender);
+            }
+            return true;
+        }
+
         if (args.length >= 1 && args[0].equalsIgnoreCase("test")) {
             if (args.length < 2 || args.length > 4 || !TEST_EFFECTS.containsKey(args[1].toLowerCase(Locale.ROOT))) {
                 sender.sendMessage("§e/" + label + " test <" + String.join("|", TEST_EFFECTS.keySet()) + "> [Spieler] [Partner]");
@@ -76,10 +92,12 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
                     sender.sendMessage("§e/" + label + " test sound");
                     return true;
                 }
-                sender.sendMessage(plugin.getScheduledSoundManager().testPlayback()
-                        ? text(plugin, sender, "§aMusiktest für alle Spieler gestartet.", "§aMusic test started for all players.")
-                        : text(plugin, sender, "§cMusik deaktiviert, Voice Chat nicht bereit oder sounds/sound.mp3 fehlt.",
-                                "§cMusic disabled, Voice Chat not ready or sounds/sound.mp3 missing."));
+                if (plugin.getScheduledSoundManager() == null) {
+                    sender.sendMessage(text(plugin, sender, "§cVoice-Chat-API nicht verfügbar. Nutze /vision voicechat.",
+                            "§cVoice chat API unavailable. Use /vision voicechat."));
+                } else {
+                    plugin.getScheduledSoundManager().testPlayback(sender);
+                }
                 return true;
             }
             boolean paired = effect.equals("leash") || effect.equals("sit") || effect.equals("spread");
@@ -236,6 +254,8 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(text(plugin, sender, "§eBenutzung: /" + label + " [menu|admin] | reload | heal [Spieler] | anstecken <Spieler>",
                 "§eUsage: /" + label + " [menu|admin] | reload | heal [player] | infect <player>"));
         sender.sendMessage("§e/" + label + " language <de|en>");
+        sender.sendMessage("§e/" + label + " voicechat");
+        sender.sendMessage("§e/" + label + " updates");
         sender.sendMessage("§e/" + label + " test <" + String.join("|", TEST_EFFECTS.keySet()) + "> [Spieler] [Partner]");
         sender.sendMessage("§e/" + label + " <" + String.join("|", FEATURE_PATHS.keySet()) + "> <on|off>");
         return true;
@@ -247,7 +267,7 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
             List<String> completions = new ArrayList<>();
             List<String> subcommands = new ArrayList<>(List.of("menu"));
             if (sender.hasPermission("vision.admin")) {
-                subcommands.addAll(List.of("admin", "reload", "heilen", "anstecken", "heal", "infect", "language", "sprache", "test"));
+                subcommands.addAll(List.of("admin", "reload", "heilen", "anstecken", "heal", "infect", "language", "sprache", "test", "voicechat", "updates"));
                 subcommands.addAll(FEATURE_PATHS.keySet());
             }
             for (String subcommand : subcommands) {
@@ -256,6 +276,9 @@ public final class SekretCommand implements CommandExecutor, TabCompleter {
                 }
             }
             return completions;
+        }
+        if (sender.hasPermission("vision.admin") && args[0].equalsIgnoreCase("updates")) {
+            return plugin.getPluginUpdateManager().complete(args);
         }
         if (sender.hasPermission("vision.admin") && args[0].equalsIgnoreCase("test")) {
             if (args.length == 2) {

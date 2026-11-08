@@ -1,17 +1,18 @@
 name: Vision
-version: 1.0.5
+version: 1.0.6
 main: de.Darkness.sekret.SekretPlugin
 api-version: '1.21'
 author: Darkness
 description: Chaotische und humorvolle Todesmechaniken.
-depend: [voicechat, ItemsAdder]
+depend: [ItemsAdder]
+softdepend: [voicechat]
 libraries:
   - javazoom:jlayer:1.0.1
 
 commands:
   vision:
     description: Verwaltet das Vision-Plugin.
-    usage: /vision [menu|admin] | test <effect> [player] [partner] | language <de|en> | reload | heal [player] | infect <player> | <feature> <on|off>
+    usage: /vision [menu|admin] | updates | voicechat | test <effect> [player] [partner] | language <de|en> | reload | heal [player] | infect <player> | <feature> <on|off>
   sit:
     description: Setzt eine angeleinte Person hin.
     usage: /sit <angeleinter>
@@ -23,6 +24,9 @@ commands:
     usage: /todesliste [an|aus]
 
 permissions:
+  vision.updates.install:
+    description: Erlaubt nach Bestätigung das Herunterladen und Vorbereiten fremder Plugin-JARs.
+    default: op
   vision.spawn.set:
     description: Erlaubt das Festlegen des Weltspawns mit /spawn set.
     default: op

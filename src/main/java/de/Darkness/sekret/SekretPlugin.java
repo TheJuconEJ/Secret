@@ -9,6 +9,7 @@ import de.Darkness.sekret.manager.DiseaseManager;
 import de.Darkness.sekret.manager.FeatureMenu;
 import de.Darkness.sekret.manager.LeashManager;
 import de.Darkness.sekret.manager.PlayerMenu;
+import de.Darkness.sekret.manager.PluginUpdateManager;
 import de.Darkness.sekret.manager.ScheduledSoundManager;
 import de.Darkness.sekret.manager.SettingsMenu;
 import de.Darkness.sekret.manager.SitManager;
@@ -49,6 +50,8 @@ public final class SekretPlugin extends JavaPlugin {
     private SettingsMenu settingsMenu;
     @Getter
     private PlayerMenu playerMenu;
+    @Getter
+    private PluginUpdateManager pluginUpdateManager;
 
     @Override
     public void onEnable() {
@@ -66,6 +69,7 @@ public final class SekretPlugin extends JavaPlugin {
         featureMenu = new FeatureMenu(this);
         thirstManager = new ThirstManager(this);
         settingsMenu = new SettingsMenu(this);
+        pluginUpdateManager = new PluginUpdateManager(this);
 
         getServer().getPluginManager().registerEvents(leashManager, this);
         getServer().getPluginManager().registerEvents(deathMechanicsManager, this);
@@ -76,6 +80,7 @@ public final class SekretPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(thirstManager, this);
         getServer().getPluginManager().registerEvents(settingsMenu, this);
         getServer().getPluginManager().registerEvents(playerMenu, this);
+        getServer().getPluginManager().registerEvents(pluginUpdateManager, this);
         leashManager.start();
 
         PluginCommand deathsCommand = getCommand("todesliste");
@@ -105,12 +110,23 @@ public final class SekretPlugin extends JavaPlugin {
         diseaseManager.start();
         deathScoreboardManager.start();
         thirstManager.start();
-        scheduledSoundManager = new ScheduledSoundManager(this);
-        scheduledSoundManager.start();
+        try {
+            scheduledSoundManager = new ScheduledSoundManager(this);
+            scheduledSoundManager.start();
+        } catch (LinkageError error) {
+            if (scheduledSoundManager != null) {
+                scheduledSoundManager.shutdown();
+                scheduledSoundManager = null;
+            }
+            getLogger().warning("Simple-Voice-Chat-API nicht verfügbar oder inkompatibel. Nur die Musikfunktion bleibt aus. Details: " + error);
+        }
     }
 
     @Override
     public void onDisable() {
+        if (pluginUpdateManager != null) {
+            pluginUpdateManager.shutdown();
+        }
         if (playerMenu != null) {
             playerMenu.shutdown();
         }
@@ -152,7 +168,9 @@ public final class SekretPlugin extends JavaPlugin {
         deathMechanicsManager.reload();
         diseaseManager.reload();
         sitManager.reload();
-        scheduledSoundManager.reload();
+        if (scheduledSoundManager != null) {
+            scheduledSoundManager.reload();
+        }
         deathScoreboardManager.reload();
         thirstManager.reload();
         featureMenu.refresh();
@@ -201,7 +219,11 @@ public final class SekretPlugin extends JavaPlugin {
             case "leash" -> leashManager.reload();
             case "disease" -> diseaseManager.reload();
             case "sit" -> sitManager.reload();
-            case "scheduled_sound" -> scheduledSoundManager.reload();
+            case "scheduled_sound" -> {
+                if (scheduledSoundManager != null) {
+                    scheduledSoundManager.reload();
+                }
+            }
             case "death_scoreboard" -> deathScoreboardManager.reload();
             case "thirst" -> thirstManager.reload();
         }

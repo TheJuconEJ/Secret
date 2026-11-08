@@ -49,7 +49,6 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
     private final Set<UUID> hidden = new HashSet<>();
     private final Map<UUID, Sidebar> sidebars = new HashMap<>();
     private boolean enabled;
-    private boolean formatWarningLogged;
 
     public DeathScoreboardManager(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -209,14 +208,13 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
         if (sidebar == null) {
             Scoreboard board = plugin.getServer().getScoreboardManager().getNewScoreboard();
             Objective objective = board.registerNewObjective("vision_deaths", "dummy", " ");
-            hideScoreNumbers(objective);
             sidebar = new Sidebar(board, player.getScoreboard(), objective);
-            for (int i = 0; i < TOP_SIZE + 6; i++) {
+            for (int i = 0; i < TOP_SIZE + 9; i++) {
                 String entry = "§" + Integer.toHexString(i) + "§r";
                 Team team = board.registerNewTeam("vision_line_" + i);
                 team.addEntry(entry);
                 sidebar.lines.add(team);
-                objective.getScore(entry).setScore(TOP_SIZE + 6 - i);
+                objective.getScore(entry).setScore(TOP_SIZE + 9 - i);
             }
             sidebar.progress = animated ? 0 : ANIMATION_STEPS;
             updateContent(player, sidebar);
@@ -236,24 +234,6 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
         }
     }
 
-    private void hideScoreNumbers(Objective objective) {
-        try {
-            ClassLoader loader = Objective.class.getClassLoader();
-            Class<?> formatType = Class.forName("io.papermc.paper.scoreboard.numbers.NumberFormat", true, loader);
-            Class<?> componentType = Class.forName("net.kyori.adventure.text.Component", true, loader);
-            Class<?> componentLikeType = Class.forName("net.kyori.adventure.text.ComponentLike", true, loader);
-            Object empty = componentType.getMethod("empty").invoke(null);
-            Object fixed = formatType.getMethod("fixed", componentLikeType).invoke(null, empty);
-            // Use only Paper's public fixed-component format; never BlankFormat or NMS fields.
-            Objective.class.getMethod("numberFormat", formatType).invoke(objective, fixed);
-        } catch (ReflectiveOperationException | LinkageError exception) {
-            if (!formatWarningLogged) {
-                plugin.getLogger().warning("Dieser Server unterstützt das Ausblenden der Sidebar-Zahlen über das öffentliche Fixed-Format nicht. Standardzahlen bleiben sichtbar.");
-                formatWarningLogged = true;
-            }
-        }
-    }
-
     private void updateContent(Player player, Sidebar sidebar) {
         List<UUID> players = new ArrayList<>(names.keySet());
         players.sort(Comparator.<UUID>comparingInt(id -> deaths.getOrDefault(id, 0))
@@ -261,29 +241,45 @@ public final class DeathScoreboardManager implements Listener, CommandExecutor, 
                 .thenComparing(id -> names.get(id), String.CASE_INSENSITIVE_ORDER)
                 .thenComparing(UUID::toString));
 
-        sidebar.title = text(plugin, player, "§c§lTodesliste", "§c§lDeath leaderboard");
+        sidebar.title = text(plugin, player, "§c§lVISION §8┃ §fTodesliste", "§c§lVISION §8┃ §fDeaths");
         sidebar.content.clear();
-        sidebar.content.add("§8§m------------------------");
-        sidebar.content.add("§7Top 5");
+        sidebar.content.add(" ");
+        sidebar.content.add(text(plugin, player, "§8▸ §7§lMEISTE TODE", "§8▸ §7§lMOST DEATHS"));
         for (int i = 0; i < TOP_SIZE; i++) {
+            String rankColor = switch (i) {
+                case 0 -> "§6";
+                case 1 -> "§f";
+                case 2 -> "§c";
+                default -> "§8";
+            };
             if (i < players.size()) {
                 UUID id = players.get(i);
-                sidebar.content.add("§e" + (i + 1) + ". §f" + names.get(id) + " §8» §c" + deaths.getOrDefault(id, 0));
+                String nameColor = id.equals(player.getUniqueId()) ? "§b" : "§7";
+                sidebar.content.add(rankColor + "◆ " + nameColor + names.get(id) + " §8┃ §c" + deaths.getOrDefault(id, 0));
             } else {
-                sidebar.content.add("§8" + (i + 1) + ". —");
+                sidebar.content.add("§8◇ §8—");
             }
         }
-        sidebar.content.add("§8§m------------------------");
-        sidebar.content.add(text(plugin, player, "§7Deine Tode: §c", "§7Your deaths: §c") + deaths.getOrDefault(player.getUniqueId(), 0));
+        sidebar.content.add(" ");
+        sidebar.content.add(text(plugin, player, "§8▸ §7§lDEINE STATISTIK", "§8▸ §7§lYOUR STATS"));
+        sidebar.content.add(text(plugin, player, "§7Deine Tode §8┃ §c", "§7Your deaths §8┃ §c") + deaths.getOrDefault(player.getUniqueId(), 0));
         long total = deaths.values().stream().mapToLong(Integer::longValue).sum();
-        sidebar.content.add(text(plugin, player, "§7Insgesamt: §c", "§7Total: §c") + total);
-        sidebar.content.add("§8/todesliste");
+        sidebar.content.add(text(plugin, player, "§7Server gesamt §8┃ §f", "§7Server total §8┃ §f") + total);
+        sidebar.content.add(" ");
+        sidebar.content.add(text(plugin, player, "§8/todesliste §7• §8an / aus", "§8/todesliste §7• §8on / off"));
+        sidebar.content.add("§8§m--------------------------");
     }
 
     private void renderFrame(Sidebar sidebar) {
-        sidebar.objective.setDisplayName(reveal(sidebar.title, sidebar.progress));
+        if (!sidebar.objective.getDisplayName().equals(sidebar.title)) {
+            sidebar.objective.setDisplayName(sidebar.title);
+        }
         for (int i = 0; i < sidebar.lines.size(); i++) {
-            sidebar.lines.get(i).setPrefix(reveal(sidebar.content.get(i), sidebar.progress));
+            Team team = sidebar.lines.get(i);
+            String prefix = reveal(sidebar.content.get(i), sidebar.progress);
+            if (!team.getPrefix().equals(prefix)) {
+                team.setPrefix(prefix);
+            }
         }
     }
 
